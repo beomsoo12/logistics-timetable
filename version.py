@@ -3,10 +3,18 @@
 """
 
 # 현재 버전 (MAJOR.MINOR.PATCH)
-VERSION = "1.1.3"
+VERSION = "1.1.4"
 
 # 버전 히스토리
 VERSION_HISTORY = {
+    "1.1.4": {
+        "date": "2026-01-18",
+        "changes": [
+            "업데이트 시 임시 폴더 접근 문제 수정",
+            "ZIP 파일을 현재 폴더로 복사 후 압축 해제",
+            "PowerShell ExecutionPolicy Bypass 추가"
+        ]
+    },
     "1.1.3": {
         "date": "2026-01-18",
         "changes": [

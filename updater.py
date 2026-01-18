@@ -325,6 +325,10 @@ class Updater:
                 batch_path = os.path.join(current_dir, "update_temp.bat")
                 exe_name = os.path.basename(current_exe)
 
+                # ZIP 파일을 현재 폴더로 복사 (임시 폴더 접근 문제 방지)
+                local_zip_path = os.path.join(current_dir, "update_download.zip")
+                shutil.copy2(zip_path, local_zip_path)
+
                 # 기존 폴더 삭제 후 ZIP 압축 해제 방식
                 batch_content = f'''@echo off
 chcp 65001 >nul
@@ -332,7 +336,7 @@ echo ============================================
 echo 업데이트를 설치하고 있습니다...
 echo ============================================
 echo 현재 폴더: {current_dir}
-echo ZIP 파일: {zip_path}
+echo ZIP 파일: {local_zip_path}
 cd /d "{current_dir}"
 timeout /t 3 /nobreak >nul
 
@@ -349,7 +353,9 @@ echo [1/4] 기존 파일 삭제 중...
 echo 배치 파일과 ZIP 파일을 제외한 모든 파일 삭제...
 for /f "delims=" %%i in ('dir /b /a-d "{current_dir}" 2^>nul') do (
     if /i not "%%i"=="update_temp.bat" (
-        del /f /q "{current_dir}\\%%i" 2>nul
+        if /i not "%%i"=="update_download.zip" (
+            del /f /q "{current_dir}\\%%i" 2>nul
+        )
     )
 )
 for /d %%i in ("{current_dir}\\*") do (
@@ -358,9 +364,10 @@ for /d %%i in ("{current_dir}\\*") do (
 timeout /t 1 /nobreak >nul
 
 echo [2/4] ZIP 파일 압축 해제 중...
-powershell -Command "Expand-Archive -Path '{zip_path}' -DestinationPath '{current_dir}' -Force"
+powershell -ExecutionPolicy Bypass -Command "Expand-Archive -Path '{local_zip_path}' -DestinationPath '{current_dir}' -Force"
 if errorlevel 1 (
     echo 압축 해제 실패!
+    echo 오류 코드: %errorlevel%
     pause
     goto cleanup
 )
@@ -392,6 +399,10 @@ echo 업데이트가 완료되었습니다.
 echo ============================================
 echo 프로그램을 시작합니다...
 timeout /t 1 /nobreak >nul
+
+REM 다운로드한 ZIP 파일 삭제
+del /f /q "{local_zip_path}" 2>nul
+
 cd /d "{current_dir}"
 start "" /D "{current_dir}" "{current_exe}"
 

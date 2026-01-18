@@ -357,6 +357,8 @@ class Updater:
                     batch_content = f'''@echo off
 chcp 65001 >nul
 echo 업데이트를 설치하고 있습니다...
+echo 현재 폴더: {current_dir}
+cd /d "{current_dir}"
 timeout /t 3 /nobreak >nul
 
 :retry
@@ -402,7 +404,8 @@ echo.
 echo 업데이트가 완료되었습니다.
 echo 프로그램을 시작합니다...
 timeout /t 1 /nobreak >nul
-start "" "{current_exe}"
+cd /d "{current_dir}"
+start "" /D "{current_dir}" "{current_exe}"
 
 :cleanup
 echo 임시 파일 정리 중...

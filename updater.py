@@ -156,124 +156,142 @@ class Updater:
         Returns:
             bool: 사용자가 업데이트를 선택하면 True
         """
-        dialog = tk.Toplevel(parent) if parent else tk.Tk()
-        dialog.title("업데이트 확인")
-        dialog.geometry("600x400")
-        dialog.resizable(False, False)
+        write_update_log(f"show_update_dialog 시작 - parent: {parent}")
 
-        if parent:
-            dialog.transient(parent)
-            dialog.grab_set()
+        try:
+            dialog = tk.Toplevel(parent) if parent else tk.Tk()
+            dialog.title("업데이트 확인")
+            dialog.geometry("600x400")
+            dialog.resizable(False, False)
 
-        # 제목
-        title_label = tk.Label(
-            dialog,
-            text=f"새로운 버전이 있습니다! (v{self.latest_version})",
-            font=("굴림체", 14, "bold"),
-            fg="#2980b9"
-        )
-        title_label.pack(pady=20)
-
-        # 현재 버전 정보
-        info_frame = tk.Frame(dialog)
-        info_frame.pack(pady=10)
-
-        tk.Label(
-            info_frame,
-            text=f"현재 버전: v{self.current_version}",
-            font=("굴림체", 10)
-        ).grid(row=0, column=0, sticky="w", padx=20)
-
-        tk.Label(
-            info_frame,
-            text=f"최신 버전: v{self.latest_version}",
-            font=("굴림체", 10, "bold"),
-            fg="#27ae60"
-        ).grid(row=1, column=0, sticky="w", padx=20)
-
-        # 릴리스 노트
-        notes_label = tk.Label(
-            dialog,
-            text="변경 사항:",
-            font=("굴림체", 10, "bold")
-        )
-        notes_label.pack(pady=(20, 5))
-
-        # 스크롤 가능한 텍스트
-        text_frame = tk.Frame(dialog)
-        text_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=5)
-
-        scrollbar = tk.Scrollbar(text_frame)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-        notes_text = tk.Text(
-            text_frame,
-            wrap=tk.WORD,
-            font=("굴림체", 9),
-            yscrollcommand=scrollbar.set,
-            height=10
-        )
-        notes_text.pack(fill=tk.BOTH, expand=True)
-        scrollbar.config(command=notes_text.yview)
-
-        if self.release_notes:
-            notes_text.insert("1.0", self.release_notes)
-        else:
-            notes_text.insert("1.0", "변경 사항 정보가 없습니다.")
-
-        notes_text.config(state=tk.DISABLED)
-
-        # 버튼
-        button_frame = tk.Frame(dialog)
-        button_frame.pack(pady=20)
-
-        result = {"update": False}
-
-        def on_update():
-            result["update"] = True
-            dialog.destroy()
-
-        def on_skip():
-            result["update"] = False
-            dialog.destroy()
-
-        update_btn = tk.Button(
-            button_frame,
-            text="지금 업데이트",
-            font=("굴림체", 10, "bold"),
-            bg="#27ae60",
-            fg="white",
-            command=on_update,
-            cursor="hand2",
-            width=15,
-            padx=10,
-            pady=5
-        )
-        update_btn.pack(side=tk.LEFT, padx=10)
-
-        skip_btn = tk.Button(
-            button_frame,
-            text="나중에",
-            font=("굴림체", 10),
-            bg="#95a5a6",
-            fg="white",
-            command=on_skip,
-            cursor="hand2",
-            width=15,
-            padx=10,
-            pady=5
-        )
-        skip_btn.pack(side=tk.LEFT, padx=10)
-
-        # 다이얼로그 중앙 배치
-        if parent:
+            # 화면 중앙에 배치 (parent 없어도)
             dialog.update_idletasks()
-            x = parent.winfo_x() + (parent.winfo_width() - dialog.winfo_width()) // 2
-            y = parent.winfo_y() + (parent.winfo_height() - dialog.winfo_height()) // 2
-            dialog.geometry(f"+{x}+{y}")
+            screen_width = dialog.winfo_screenwidth()
+            screen_height = dialog.winfo_screenheight()
+            x = (screen_width - 600) // 2
+            y = (screen_height - 400) // 2
+            dialog.geometry(f"600x400+{x}+{y}")
 
-        dialog.wait_window()
-        return result["update"]
+            # 최상단 표시 및 포커스
+            dialog.lift()
+            dialog.focus_force()
+            dialog.attributes('-topmost', True)
+            dialog.after(100, lambda: dialog.attributes('-topmost', False))
+
+            if parent:
+                dialog.transient(parent)
+                dialog.grab_set()
+
+            write_update_log("다이얼로그 창 생성 완료")
+
+            # 제목
+            title_label = tk.Label(
+                dialog,
+                text=f"새로운 버전이 있습니다! (v{self.latest_version})",
+                font=("굴림체", 14, "bold"),
+                fg="#2980b9"
+            )
+            title_label.pack(pady=20)
+
+            # 현재 버전 정보
+            info_frame = tk.Frame(dialog)
+            info_frame.pack(pady=10)
+
+            tk.Label(
+                info_frame,
+                text=f"현재 버전: v{self.current_version}",
+                font=("굴림체", 10)
+            ).grid(row=0, column=0, sticky="w", padx=20)
+
+            tk.Label(
+                info_frame,
+                text=f"최신 버전: v{self.latest_version}",
+                font=("굴림체", 10, "bold"),
+                fg="#27ae60"
+            ).grid(row=1, column=0, sticky="w", padx=20)
+
+            # 릴리스 노트
+            notes_label = tk.Label(
+                dialog,
+                text="변경 사항:",
+                font=("굴림체", 10, "bold")
+            )
+            notes_label.pack(pady=(20, 5))
+
+            # 스크롤 가능한 텍스트
+            text_frame = tk.Frame(dialog)
+            text_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=5)
+
+            scrollbar = tk.Scrollbar(text_frame)
+            scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+            notes_text = tk.Text(
+                text_frame,
+                wrap=tk.WORD,
+                font=("굴림체", 9),
+                yscrollcommand=scrollbar.set,
+                height=10
+            )
+            notes_text.pack(fill=tk.BOTH, expand=True)
+            scrollbar.config(command=notes_text.yview)
+
+            if self.release_notes:
+                notes_text.insert("1.0", self.release_notes)
+            else:
+                notes_text.insert("1.0", "변경 사항 정보가 없습니다.")
+
+            notes_text.config(state=tk.DISABLED)
+
+            # 버튼
+            button_frame = tk.Frame(dialog)
+            button_frame.pack(pady=20)
+
+            result = {"update": False}
+
+            def on_update():
+                result["update"] = True
+                dialog.destroy()
+
+            def on_skip():
+                result["update"] = False
+                dialog.destroy()
+
+            update_btn = tk.Button(
+                button_frame,
+                text="지금 업데이트",
+                font=("굴림체", 10, "bold"),
+                bg="#27ae60",
+                fg="white",
+                command=on_update,
+                cursor="hand2",
+                width=15,
+                padx=10,
+                pady=5
+            )
+            update_btn.pack(side=tk.LEFT, padx=10)
+
+            skip_btn = tk.Button(
+                button_frame,
+                text="나중에",
+                font=("굴림체", 10),
+                bg="#95a5a6",
+                fg="white",
+                command=on_skip,
+                cursor="hand2",
+                width=15,
+                padx=10,
+                pady=5
+            )
+            skip_btn.pack(side=tk.LEFT, padx=10)
+
+            write_update_log("다이얼로그 UI 구성 완료 - wait_window 호출")
+            dialog.wait_window()
+            write_update_log(f"다이얼로그 종료 - 결과: {result['update']}")
+            return result["update"]
+
+        except Exception as e:
+            write_update_log(f"show_update_dialog 예외: {str(e)}")
+            return False
 
     def download_and_install(self, parent=None):
         """
@@ -627,16 +645,27 @@ del "%~f0"
         Returns:
             bool: 업데이트가 설치되었으면 True
         """
+        write_update_log(f"check_and_update 시작 - parent: {parent}, auto: {auto}")
+
         # 업데이트 확인
         has_update = self.check_for_updates(silent=auto)
 
         if not has_update:
+            write_update_log("업데이트 없음 - 종료")
             return False
 
-        # 업데이트 다이얼로그 표시
-        if self.show_update_dialog(parent):
-            # 다운로드 및 설치
-            return self.download_and_install(parent)
+        write_update_log("show_update_dialog 호출 시도")
+        try:
+            # 업데이트 다이얼로그 표시
+            user_accepted = self.show_update_dialog(parent)
+            write_update_log(f"show_update_dialog 결과: {user_accepted}")
+
+            if user_accepted:
+                write_update_log("다운로드 및 설치 시작")
+                # 다운로드 및 설치
+                return self.download_and_install(parent)
+        except Exception as e:
+            write_update_log(f"check_and_update 예외: {str(e)}")
 
         return False
 

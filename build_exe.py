@@ -38,12 +38,12 @@ def build_executable():
     icon_option = f'--icon={icon_file}' if os.path.exists(icon_file) else '--icon=NONE'
 
     # PyInstaller 명령어 구성 (영문 이름 사용 - 백신 호환성)
+    # --onedir 모드 사용 (DLL 오류 방지)
     cmd = [
         'pyinstaller',
         '--name=LogisticsTimetable',
-        '--onefile',  # 단일 파일로 생성
+        '--onedir',  # 폴더로 생성 (DLL 오류 방지)
         '--windowed',  # GUI 앱 (콘솔 숨김)
-        '--noupx',  # UPX 압축 비활성화 (DLL 오류 방지)
         icon_option,  # 아이콘
         '--add-data=version.py;.',  # 버전 파일 포함
         '--hidden-import=pyodbc',
@@ -75,19 +75,26 @@ def create_distribution_package():
     print("\n배포 패키지를 생성합니다...")
 
     # 배포 폴더 이름
-    dist_name = f"LogisticsTimetable_v1.0.5_{datetime.now().strftime('%Y%m%d')}"
+    dist_name = f"LogisticsTimetable_v1.0.6_{datetime.now().strftime('%Y%m%d')}"
     dist_folder = os.path.join('dist', dist_name)
 
     # 배포 폴더 생성
     os.makedirs(dist_folder, exist_ok=True)
 
-    # 실행 파일 복사
-    exe_path = os.path.join('dist', 'LogisticsTimetable.exe')
-    if os.path.exists(exe_path):
-        shutil.copy2(exe_path, dist_folder)
-        print(f"  [OK] 실행 파일 복사 완료")
+    # onedir 모드: 폴더 전체 복사
+    onedir_path = os.path.join('dist', 'LogisticsTimetable')
+    if os.path.exists(onedir_path):
+        # 폴더 내 모든 파일 복사
+        for item in os.listdir(onedir_path):
+            src = os.path.join(onedir_path, item)
+            dst = os.path.join(dist_folder, item)
+            if os.path.isdir(src):
+                shutil.copytree(src, dst)
+            else:
+                shutil.copy2(src, dst)
+        print(f"  [OK] 프로그램 폴더 복사 완료")
     else:
-        print(f"  [ERROR] 실행 파일을 찾을 수 없습니다: {exe_path}")
+        print(f"  [ERROR] 빌드된 폴더를 찾을 수 없습니다: {onedir_path}")
         return None
 
     # 아이콘 파일 복사
@@ -103,12 +110,6 @@ def create_distribution_package():
         print(f"  [OK] 암호화된 DB 설정 파일 복사 완료")
     else:
         print(f"  [WARNING] 암호화된 DB 설정 파일이 없습니다: {enc_config}")
-
-    # db_crypto.py 복사 (암호화/복호화 모듈)
-    crypto_file = 'db_crypto.py'
-    if os.path.exists(crypto_file):
-        shutil.copy2(crypto_file, dist_folder)
-        print(f"  [OK] DB 암호화 모듈 복사 완료")
 
     # 설정 파일 템플릿 복사
     config_template = 'db_config.py'

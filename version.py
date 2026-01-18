@@ -3,10 +3,16 @@
 """
 
 # 현재 버전 (MAJOR.MINOR.PATCH)
-VERSION = "1.0.5"
+VERSION = "1.0.6"
 
 # 버전 히스토리
 VERSION_HISTORY = {
+    "1.0.6": {
+        "date": "2026-01-18",
+        "changes": [
+            "Python DLL 오류 해결 (onedir 모드로 변경)"
+        ]
+    },
     "1.0.5": {
         "date": "2026-01-18",
         "changes": [

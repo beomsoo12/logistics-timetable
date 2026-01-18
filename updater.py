@@ -331,25 +331,28 @@ class Updater:
             progress_dialog.update()
 
             if is_exe:
-                # EXE 파일 업데이트: 배치 스크립트로 교체
+                # EXE 파일 업데이트: 폴더 전체 교체 (onedir 모드)
                 new_exe = None
                 new_icon = None
+                new_internal = None
+                update_source_dir = None
 
-                # 압축 해제된 폴더에서 EXE와 ICO 파일 찾기
+                # 압축 해제된 폴더에서 EXE, _internal 폴더, ICO 파일 찾기
                 for root, dirs, files in os.walk(extract_dir):
                     for file in files:
                         if file.endswith('.exe'):
                             new_exe = os.path.join(root, file)
+                            update_source_dir = root
                         elif file.endswith('.ico'):
                             new_icon = os.path.join(root, file)
-                        elif file == 'db_config.enc':
-                            # 암호화된 설정 파일은 복사하지 않음 (기존 유지)
-                            pass
+                    # _internal 폴더 찾기
+                    if '_internal' in dirs:
+                        new_internal = os.path.join(root, '_internal')
 
                 if new_exe:
-                    # 배치 스크립트 생성 (현재 프로그램 종료 후 파일 교체)
+                    # 배치 스크립트 생성 (현재 프로그램 종료 후 폴더 전체 교체)
                     batch_path = os.path.join(temp_dir, "update.bat")
-                    new_exe_name = os.path.basename(current_exe)
+                    current_internal = os.path.join(current_dir, "_internal")
 
                     batch_content = f'''@echo off
 chcp 65001 >nul
@@ -363,7 +366,15 @@ if exist "{current_exe}" (
     goto retry
 )
 
+echo EXE 파일 복사 중...
 copy /y "{new_exe}" "{current_exe}"
+'''
+                    # _internal 폴더 복사 (onedir 모드 필수)
+                    if new_internal:
+                        batch_content += f'''
+echo _internal 폴더 복사 중...
+if exist "{current_internal}" rmdir /s /q "{current_internal}"
+xcopy /s /e /i /y "{new_internal}" "{current_internal}"
 '''
                     # 아이콘 파일도 복사
                     if new_icon:

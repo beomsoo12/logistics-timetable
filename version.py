@@ -3,10 +3,16 @@
 """
 
 # 현재 버전 (MAJOR.MINOR.PATCH)
-VERSION = "1.0.6"
+VERSION = "1.0.7"
 
 # 버전 히스토리
 VERSION_HISTORY = {
+    "1.0.7": {
+        "date": "2026-01-18",
+        "changes": [
+            "업데이트 시 _internal 폴더 복사 추가 (DLL 오류 완전 해결)"
+        ]
+    },
     "1.0.6": {
         "date": "2026-01-18",
         "changes": [

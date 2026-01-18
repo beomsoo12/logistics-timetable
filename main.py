@@ -465,6 +465,9 @@ class TimeTableGUI:
         self.drag_company = None  # 드래그 중인 업체
         self.drag_corp_name = None  # 드래그 중인 법인명
 
+        # 업체+법인명별 색상 저장 (DB에서 로드)
+        self.company_corp_colors = {}  # key: (업체명, 법인명), value: 색상코드
+
         try:
             self.manager = TimeTableManager()
         except Exception as e:
@@ -766,7 +769,7 @@ class TimeTableGUI:
         # 기본 업무를 (업체명, 법인명) 조합으로 그룹화하고 최소 display_order 추출
         tasks_by_company_corp = {}  # key: (업체명, 법인명), value: {time_slot: task_info}
         company_corp_display_order = {}  # key: (업체명, 법인명), value: 최소 display_order
-        company_corp_colors = {}  # key: (업체명, 법인명), value: 색상코드
+        self.company_corp_colors = {}  # key: (업체명, 법인명), value: 색상코드
 
         for display_order, task_info in default_tasks.items():
             company = task_info.get("company", "")
@@ -781,16 +784,16 @@ class TimeTableGUI:
                     company_corp_display_order[key] = display_order
                     # 첫 번째 색상 설정 (없으면 COMPANY_COLORS 기본값 사용)
                     if color:
-                        company_corp_colors[key] = color
+                        self.company_corp_colors[key] = color
                     else:
-                        company_corp_colors[key] = self.COMPANY_COLORS.get(company, "#d5f4e6")
+                        self.company_corp_colors[key] = self.COMPANY_COLORS.get(company, "#d5f4e6")
                 else:
                     # 해당 조합의 최소 display_order 유지
                     if display_order < company_corp_display_order[key]:
                         company_corp_display_order[key] = display_order
                     # 색상이 있으면 업데이트 (더 작은 display_order의 색상 우선)
                     if color and display_order <= company_corp_display_order[key]:
-                        company_corp_colors[key] = color
+                        self.company_corp_colors[key] = color
                 tasks_by_company_corp[key][time_slot] = task_info
 
         # display_order 순서대로 (업체명, 법인명) 정렬
@@ -873,7 +876,7 @@ class TimeTableGUI:
             company, corp_name = company_corp
             company_tasks = tasks_by_company_corp.get(company_corp, {})
             # DB에 저장된 색상 사용 (없으면 COMPANY_COLORS 기본값)
-            bg_color = company_corp_colors.get(company_corp, self.COMPANY_COLORS.get(company, "#d5f4e6"))
+            bg_color = self.company_corp_colors.get(company_corp, self.COMPANY_COLORS.get(company, "#d5f4e6"))
 
             # 기본업무 행
             tk.Label(
@@ -1208,7 +1211,9 @@ class TimeTableGUI:
 
         # 2. 특수 시간 계산 (특수 행의 색칠된 셀)
         special_minutes = 0
-        company_color = self.COMPANY_COLORS.get(company, "#d5f4e6")
+        # DB에 저장된 업체 색상 사용 (없으면 기본값)
+        company_corp_key = (company, corp_name)
+        company_color = self.company_corp_colors.get(company_corp_key, self.COMPANY_COLORS.get(company, "#d5f4e6"))
 
         # 특수 행의 셀들만 확인 (업체명+법인명 모두 일치해야 함)
         for (row, col), value in self.grid_cells.items():
@@ -1395,7 +1400,9 @@ class TimeTableGUI:
         if clicked_widget:
             # 현재 셀의 배경색 확인
             current_bg = clicked_widget.cget("bg")
-            bg_color = self.COMPANY_COLORS.get(company, "#d5f4e6")
+            # DB에 저장된 업체 색상 사용 (없으면 기본값)
+            company_corp_key = (company, corp_name)
+            bg_color = self.company_corp_colors.get(company_corp_key, self.COMPANY_COLORS.get(company, "#d5f4e6"))
 
             # 색상 토글
             if current_bg == bg_color or current_bg == bg_color.lower():
@@ -1451,7 +1458,9 @@ class TimeTableGUI:
                 # 현재 위젯의 배경색 확인
                 try:
                     current_bg = widget_under_mouse.cget("bg")
-                    bg_color = self.COMPANY_COLORS.get(widget_company, "#d5f4e6")
+                    # DB에 저장된 업체 색상 사용 (없으면 기본값)
+                    company_corp_key = (widget_company, widget_corp_name)
+                    bg_color = self.company_corp_colors.get(company_corp_key, self.COMPANY_COLORS.get(widget_company, "#d5f4e6"))
 
                     # 색상 토글
                     if current_bg == bg_color or current_bg == bg_color.lower():

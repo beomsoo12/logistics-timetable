@@ -350,31 +350,47 @@ class Updater:
                         new_internal = os.path.join(root, '_internal')
 
                 if new_exe:
-                    # 배치 스크립트 생성 (현재 프로그램 종료 후 폴더 전체 교체)
-                    batch_path = os.path.join(temp_dir, "update.bat")
+                    # 배치 스크립트를 현재 프로그램 폴더에 생성 (임시 폴더가 아님)
+                    batch_path = os.path.join(current_dir, "update_temp.bat")
                     current_internal = os.path.join(current_dir, "_internal")
 
                     batch_content = f'''@echo off
 chcp 65001 >nul
 echo 업데이트를 설치하고 있습니다...
-timeout /t 2 /nobreak >nul
+timeout /t 3 /nobreak >nul
 
 :retry
 del "{current_exe}" 2>nul
 if exist "{current_exe}" (
-    timeout /t 1 /nobreak >nul
+    echo 프로그램 종료 대기 중...
+    timeout /t 2 /nobreak >nul
     goto retry
 )
 
 echo EXE 파일 복사 중...
 copy /y "{new_exe}" "{current_exe}"
+if errorlevel 1 (
+    echo EXE 복사 실패!
+    pause
+    goto cleanup
+)
 '''
                     # _internal 폴더 복사 (onedir 모드 필수)
                     if new_internal:
                         batch_content += f'''
 echo _internal 폴더 복사 중...
-if exist "{current_internal}" rmdir /s /q "{current_internal}"
-xcopy /s /e /i /y "{new_internal}" "{current_internal}"
+if exist "{current_internal}" (
+    echo 기존 _internal 폴더 삭제 중...
+    rmdir /s /q "{current_internal}"
+    timeout /t 1 /nobreak >nul
+)
+echo 새 _internal 폴더 복사 중...
+xcopy /s /e /i /y /q "{new_internal}" "{current_internal}"
+if errorlevel 1 (
+    echo _internal 복사 실패!
+    pause
+    goto cleanup
+)
 '''
                     # 아이콘 파일도 복사
                     if new_icon:
@@ -382,8 +398,15 @@ xcopy /s /e /i /y "{new_internal}" "{current_internal}"
                         batch_content += f'copy /y "{new_icon}" "{icon_dest}"\n'
 
                     batch_content += f'''
+echo.
 echo 업데이트가 완료되었습니다.
+echo 프로그램을 시작합니다...
+timeout /t 1 /nobreak >nul
 start "" "{current_exe}"
+
+:cleanup
+echo 임시 파일 정리 중...
+rmdir /s /q "{temp_dir}" 2>nul
 del "%~f0"
 '''
 

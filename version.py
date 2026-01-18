@@ -3,10 +3,17 @@
 """
 
 # 현재 버전 (MAJOR.MINOR.PATCH)
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 
 # 버전 히스토리
 VERSION_HISTORY = {
+    "1.2.1": {
+        "date": "2026-01-18",
+        "changes": [
+            "업데이트 확인 로그 기능 추가 (update_check_log.txt)",
+            "업데이트 문제 디버깅 지원"
+        ]
+    },
     "1.2.0": {
         "date": "2026-01-18",
         "changes": [

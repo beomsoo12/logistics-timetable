@@ -16,6 +16,21 @@ import tkinter as tk
 from tkinter import messagebox
 from version import VERSION
 
+
+def write_update_log(message):
+    """업데이트 로그 파일에 기록"""
+    try:
+        if getattr(sys, 'frozen', False):
+            log_dir = os.path.dirname(sys.executable)
+        else:
+            log_dir = os.path.dirname(os.path.abspath(__file__))
+
+        log_path = os.path.join(log_dir, "update_check_log.txt")
+        with open(log_path, 'a', encoding='utf-8') as f:
+            f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {message}\n")
+    except:
+        pass
+
 class Updater:
     """자동 업데이트 관리 클래스"""
 
@@ -42,9 +57,12 @@ class Updater:
         Returns:
             bool: 업데이트가 있으면 True, 없으면 False
         """
+        write_update_log(f"업데이트 확인 시작 - 현재 버전: {self.current_version}, silent: {silent}")
+
         try:
             # GitHub API를 통해 최신 릴리스 정보 가져오기
             api_url = f"https://api.github.com/repos/{self.GITHUB_USER}/{self.GITHUB_REPO}/releases/latest"
+            write_update_log(f"API 호출: {api_url}")
 
             req = request.Request(api_url)
             req.add_header('User-Agent', 'LogisticsTimetable-Updater')
@@ -61,10 +79,18 @@ class Updater:
                 if assets:
                     self.download_url = assets[0].get('browser_download_url')
 
+                write_update_log(f"최신 버전: {self.latest_version}, 현재 버전: {self.current_version}")
+                write_update_log(f"다운로드 URL: {self.download_url}")
+
                 # 버전 비교
-                if self._compare_versions(self.latest_version, self.current_version) > 0:
+                compare_result = self._compare_versions(self.latest_version, self.current_version)
+                write_update_log(f"버전 비교 결과: {compare_result} (1=업데이트 필요, 0=동일, -1=현재가 더 높음)")
+
+                if compare_result > 0:
+                    write_update_log("업데이트 필요 - 다이얼로그 표시 예정")
                     return True
                 else:
+                    write_update_log("최신 버전 사용 중")
                     if not silent:
                         messagebox.showinfo(
                             "업데이트 확인",
@@ -73,6 +99,7 @@ class Updater:
                     return False
 
         except error.URLError as e:
+            write_update_log(f"URLError 발생: {str(e)}")
             if not silent:
                 messagebox.showwarning(
                     "업데이트 확인 실패",
@@ -81,6 +108,7 @@ class Updater:
                 )
             return False
         except Exception as e:
+            write_update_log(f"예외 발생: {str(e)}")
             if not silent:
                 messagebox.showerror(
                     "오류",

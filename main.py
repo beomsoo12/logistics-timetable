@@ -391,6 +391,22 @@ class LoginWindow:
         id_entry_frame = tk.Frame(id_frame, bg=input_border, padx=1, pady=1)
         id_entry_frame.pack(fill=tk.X, pady=(5, 0))
 
+        # 한글만 입력 허용하는 검증 함수
+        def validate_korean_only(char):
+            """한글만 입력 허용 (영문, 숫자, 특수문자 차단)"""
+            if char == "":
+                return True
+            # 한글 유니코드 범위: 가-힣 (완성형), ㄱ-ㅎ, ㅏ-ㅣ (자모)
+            for c in char:
+                if not ('\uAC00' <= c <= '\uD7A3' or  # 완성형 한글
+                        '\u3131' <= c <= '\u3163' or  # 자음/모음
+                        c == ' '):  # 공백 허용
+                    return False
+            return True
+
+        # 검증 명령 등록
+        vcmd = (self.login_window.register(validate_korean_only), '%S')
+
         self.username_entry = tk.Entry(
             id_entry_frame,
             font=("맑은 고딕", 11),
@@ -398,18 +414,25 @@ class LoginWindow:
             fg=text_dark,
             insertbackground=text_dark,
             relief=tk.FLAT,
-            highlightthickness=0
+            highlightthickness=0,
+            validate='key',
+            validatecommand=vcmd
         )
         self.username_entry.pack(fill=tk.X, ipady=10, padx=10)
         self.username_entry.focus()
 
         # 로그인 창 열릴 때 한글 모드로 시작
         self.login_window.after(100, self.set_ime_korean)
+        # 추가로 200ms 후에도 한글 모드 강제 설정
+        self.login_window.after(200, self.set_ime_korean)
+        self.login_window.after(500, self.set_ime_korean)
 
         # 입력창 포커스 효과 + IME 전환
         def on_id_focus_in(e):
             id_entry_frame.configure(bg=primary_color)
+            self.login_window.after(10, self.set_ime_korean)  # 즉시 한글 모드
             self.login_window.after(50, self.set_ime_korean)  # 한글 모드
+            self.login_window.after(100, self.set_ime_korean)  # 재확인
 
         def on_id_focus_out(e):
             id_entry_frame.configure(bg=input_border)

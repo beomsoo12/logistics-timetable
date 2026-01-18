@@ -3,10 +3,17 @@
 """
 
 # 현재 버전 (MAJOR.MINOR.PATCH)
-VERSION = "1.2.3"
+VERSION = "1.2.4"
 
 # 버전 히스토리
 VERSION_HISTORY = {
+    "1.2.4": {
+        "date": "2026-01-18",
+        "changes": [
+            "로그인 ID 입력 필드 한글만 입력 허용",
+            "영문/숫자/특수문자 입력 차단"
+        ]
+    },
     "1.2.3": {
         "date": "2026-01-18",
         "changes": [

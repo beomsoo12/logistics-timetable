@@ -159,12 +159,13 @@ class Updater:
         write_update_log(f"show_update_dialog 시작 - parent: {parent}")
 
         try:
-            dialog = tk.Toplevel(parent) if parent else tk.Tk()
+            # 독립적인 Toplevel 창 생성 (parent와 무관하게)
+            dialog = tk.Toplevel()
             dialog.title("업데이트 확인")
             dialog.geometry("600x400")
             dialog.resizable(False, False)
 
-            # 화면 중앙에 배치 (parent 없어도)
+            # 화면 중앙에 배치
             dialog.update_idletasks()
             screen_width = dialog.winfo_screenwidth()
             screen_height = dialog.winfo_screenheight()
@@ -176,11 +177,26 @@ class Updater:
             dialog.lift()
             dialog.focus_force()
             dialog.attributes('-topmost', True)
-            dialog.after(100, lambda: dialog.attributes('-topmost', False))
 
-            if parent:
-                dialog.transient(parent)
-                dialog.grab_set()
+            # 결과 저장 변수 (미리 선언)
+            result = {"update": False}
+
+            # 버튼 콜백 함수 (미리 선언)
+            def on_update():
+                result["update"] = True
+                dialog.attributes('-topmost', False)
+                dialog.destroy()
+
+            def on_skip():
+                result["update"] = False
+                dialog.attributes('-topmost', False)
+                dialog.destroy()
+
+            # 창 닫기 버튼 동작 설정
+            dialog.protocol("WM_DELETE_WINDOW", on_skip)
+
+            # 모달 동작
+            dialog.grab_set()
 
             write_update_log("다이얼로그 창 생성 완료")
 
@@ -245,16 +261,6 @@ class Updater:
             # 버튼
             button_frame = tk.Frame(dialog)
             button_frame.pack(pady=20)
-
-            result = {"update": False}
-
-            def on_update():
-                result["update"] = True
-                dialog.destroy()
-
-            def on_skip():
-                result["update"] = False
-                dialog.destroy()
 
             update_btn = tk.Button(
                 button_frame,

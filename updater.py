@@ -291,6 +291,17 @@ class Updater:
 
             progress_dialog.update()
 
+            # 현재 실행 경로 확인
+            if getattr(sys, 'frozen', False):
+                # PyInstaller EXE 실행 파일인 경우
+                current_exe = sys.executable
+                current_dir = os.path.dirname(current_exe)
+                is_exe = True
+            else:
+                # 일반 Python 스크립트인 경우
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                is_exe = False
+
             # 임시 디렉토리에 다운로드
             temp_dir = tempfile.mkdtemp()
             zip_path = os.path.join(temp_dir, "update.zip")
@@ -315,43 +326,124 @@ class Updater:
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                 zip_ref.extractall(extract_dir)
 
-            # 설치 (현재 디렉토리에 파일 복사)
+            # 설치
             status_label.config(text="파일을 설치하고 있습니다...")
             progress_dialog.update()
 
-            current_dir = os.path.dirname(os.path.abspath(__file__))
+            if is_exe:
+                # EXE 파일 업데이트: 배치 스크립트로 교체
+                new_exe = None
+                new_icon = None
 
-            # .py 파일들만 복사 (데이터베이스 파일 제외)
-            for root, dirs, files in os.walk(extract_dir):
-                for file in files:
-                    if file.endswith('.py') and not file.startswith('db_config'):
-                        src_path = os.path.join(root, file)
-                        dst_path = os.path.join(current_dir, file)
+                # 압축 해제된 폴더에서 EXE와 ICO 파일 찾기
+                for root, dirs, files in os.walk(extract_dir):
+                    for file in files:
+                        if file.endswith('.exe'):
+                            new_exe = os.path.join(root, file)
+                        elif file.endswith('.ico'):
+                            new_icon = os.path.join(root, file)
+                        elif file == 'db_config.enc':
+                            # 암호화된 설정 파일은 복사하지 않음 (기존 유지)
+                            pass
 
-                        # 백업
-                        if os.path.exists(dst_path):
-                            backup_path = dst_path + '.backup'
-                            shutil.copy2(dst_path, backup_path)
+                if new_exe:
+                    # 배치 스크립트 생성 (현재 프로그램 종료 후 파일 교체)
+                    batch_path = os.path.join(temp_dir, "update.bat")
+                    new_exe_name = os.path.basename(current_exe)
 
-                        shutil.copy2(src_path, dst_path)
+                    batch_content = f'''@echo off
+chcp 65001 >nul
+echo 업데이트를 설치하고 있습니다...
+timeout /t 2 /nobreak >nul
 
-            # 정리
-            shutil.rmtree(temp_dir, ignore_errors=True)
+:retry
+del "{current_exe}" 2>nul
+if exist "{current_exe}" (
+    timeout /t 1 /nobreak >nul
+    goto retry
+)
 
-            progress_dialog.destroy()
+copy /y "{new_exe}" "{current_exe}"
+'''
+                    # 아이콘 파일도 복사
+                    if new_icon:
+                        icon_dest = os.path.join(current_dir, "app_icon.ico")
+                        batch_content += f'copy /y "{new_icon}" "{icon_dest}"\n'
 
-            # 성공 메시지
-            messagebox.showinfo(
-                "업데이트 완료",
-                f"v{self.latest_version} 업데이트가 완료되었습니다.\n\n"
-                "프로그램을 다시 시작해주세요."
-            )
+                    batch_content += f'''
+echo 업데이트가 완료되었습니다.
+start "" "{current_exe}"
+del "%~f0"
+'''
+
+                    with open(batch_path, 'w', encoding='utf-8') as f:
+                        f.write(batch_content)
+
+                    progress_dialog.destroy()
+
+                    # 안내 메시지
+                    messagebox.showinfo(
+                        "업데이트",
+                        f"v{self.latest_version} 업데이트를 설치합니다.\n\n"
+                        "프로그램이 자동으로 재시작됩니다."
+                    )
+
+                    # 배치 스크립트 실행 후 프로그램 종료
+                    subprocess.Popen(
+                        ['cmd', '/c', batch_path],
+                        creationflags=subprocess.CREATE_NO_WINDOW
+                    )
+
+                    # 프로그램 종료
+                    if parent:
+                        parent.destroy()
+                    sys.exit(0)
+
+                else:
+                    raise Exception("업데이트 파일에서 실행 파일을 찾을 수 없습니다.")
+
+            else:
+                # Python 스크립트 업데이트: .py 파일 복사
+                for root, dirs, files in os.walk(extract_dir):
+                    for file in files:
+                        # db_config 파일은 제외 (사용자 설정 유지)
+                        if file.endswith('.py') and not file.startswith('db_config'):
+                            src_path = os.path.join(root, file)
+                            dst_path = os.path.join(current_dir, file)
+
+                            # 백업
+                            if os.path.exists(dst_path):
+                                backup_path = dst_path + '.backup'
+                                shutil.copy2(dst_path, backup_path)
+
+                            shutil.copy2(src_path, dst_path)
+
+                        # ico 파일도 복사
+                        elif file.endswith('.ico'):
+                            src_path = os.path.join(root, file)
+                            dst_path = os.path.join(current_dir, file)
+                            shutil.copy2(src_path, dst_path)
+
+                # 정리
+                shutil.rmtree(temp_dir, ignore_errors=True)
+
+                progress_dialog.destroy()
+
+                # 성공 메시지
+                messagebox.showinfo(
+                    "업데이트 완료",
+                    f"v{self.latest_version} 업데이트가 완료되었습니다.\n\n"
+                    "프로그램을 다시 시작해주세요."
+                )
 
             return True
 
         except Exception as e:
             if 'progress_dialog' in locals():
-                progress_dialog.destroy()
+                try:
+                    progress_dialog.destroy()
+                except:
+                    pass
 
             messagebox.showerror(
                 "업데이트 실패",

@@ -8,6 +8,7 @@ from updater import check_for_updates_on_startup, manual_update_check
 from database import Database
 import ctypes
 import sys
+import os
 import uuid
 
 # 자동 로그인 허용 MAC 주소 목록
@@ -58,6 +59,14 @@ class LoginWindow:
         self.login_window.focus_force()
         self.login_window.attributes('-topmost', True)
         self.login_window.after(100, lambda: self.login_window.attributes('-topmost', False))
+
+        # 아이콘 설정
+        icon_path = get_icon_path()
+        if os.path.exists(icon_path):
+            try:
+                self.login_window.iconbitmap(icon_path)
+            except:
+                pass
 
         # 로그인 창 닫으면 프로그램 종료
         self.login_window.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -2779,9 +2788,27 @@ def start_main_app(root, user):
     root.after(1000, lambda: check_for_updates_on_startup(root))
 
 
+def get_icon_path():
+    """아이콘 파일 경로 반환"""
+    if getattr(sys, 'frozen', False):
+        # PyInstaller 실행 파일
+        base_path = os.path.dirname(sys.executable)
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, 'app_icon.ico')
+
+
 def main():
     """메인 함수"""
     root = tk.Tk()
+
+    # 아이콘 설정
+    icon_path = get_icon_path()
+    if os.path.exists(icon_path):
+        try:
+            root.iconbitmap(icon_path)
+        except:
+            pass
 
     # 로그인 창 표시
     login = LoginWindow(root, lambda user: start_main_app(root, user))

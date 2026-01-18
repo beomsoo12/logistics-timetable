@@ -33,13 +33,17 @@ def build_executable():
     """PyInstaller로 실행 파일 빌드"""
     print("\n실행 파일을 빌드합니다...")
 
+    # 아이콘 파일 확인
+    icon_file = 'app_icon.ico'
+    icon_option = f'--icon={icon_file}' if os.path.exists(icon_file) else '--icon=NONE'
+
     # PyInstaller 명령어 구성 (영문 이름 사용 - 백신 호환성)
     cmd = [
         'pyinstaller',
         '--name=LogisticsTimetable',
         '--onefile',  # 단일 파일로 생성
         '--windowed',  # GUI 앱 (콘솔 숨김)
-        '--icon=NONE',  # 아이콘 (없으면 기본)
+        icon_option,  # 아이콘
         '--add-data=version.py;.',  # 버전 파일 포함
         '--hidden-import=pyodbc',
         '--hidden-import=tkcalendar',
@@ -81,6 +85,12 @@ def create_distribution_package():
     else:
         print(f"  [ERROR] 실행 파일을 찾을 수 없습니다: {exe_path}")
         return None
+
+    # 아이콘 파일 복사
+    icon_file = 'app_icon.ico'
+    if os.path.exists(icon_file):
+        shutil.copy2(icon_file, dist_folder)
+        print(f"  [OK] 아이콘 파일 복사 완료")
 
     # 암호화된 DB 설정 파일 복사 (필수)
     enc_config = 'db_config.enc'

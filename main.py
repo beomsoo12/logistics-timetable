@@ -5,6 +5,386 @@ from tkcalendar import DateEntry
 from datetime import date, datetime, timedelta
 from version import VERSION, get_latest_changes
 from updater import check_for_updates_on_startup, manual_update_check
+from database import Database
+import ctypes
+import sys
+import uuid
+
+# 자동 로그인 허용 MAC 주소 목록
+AUTO_LOGIN_MAC_ADDRESSES = [
+    "20:16:01:25:00:0f",  # 개발자 PC
+]
+
+def get_mac_address():
+    """현재 컴퓨터의 MAC 주소 반환"""
+    try:
+        mac = ':'.join(['{:02x}'.format((uuid.getnode() >> i) & 0xff) for i in range(0, 48, 8)][::-1])
+        return mac.lower()
+    except:
+        return None
+
+
+class LoginWindow:
+    """로그인 창"""
+
+    def __init__(self, root, on_login_success):
+        self.root = root
+        self.on_login_success = on_login_success
+        self.db = None
+        self.login_window = None
+        self.current_user = None
+
+        self.setup_login_window()
+
+    def setup_login_window(self):
+        """로그인 창 설정"""
+        self.root.withdraw()  # 메인 창 숨김
+
+        self.login_window = tk.Toplevel(self.root)
+        self.login_window.title("로그인")
+        self.login_window.geometry("420x520")
+        self.login_window.resizable(False, False)
+        self.login_window.configure(bg="#f8f9fa")
+
+        # 화면 중앙에 배치
+        screen_width = self.login_window.winfo_screenwidth()
+        screen_height = self.login_window.winfo_screenheight()
+        x = (screen_width - 420) // 2
+        y = (screen_height - 520) // 2
+        self.login_window.geometry(f"420x520+{x}+{y}")
+
+        # 로그인 창 닫으면 프로그램 종료
+        self.login_window.protocol("WM_DELETE_WINDOW", self.on_close)
+
+        # 데이터베이스 연결
+        try:
+            self.db = Database()
+            if not self.db.connect():
+                messagebox.showerror("연결 오류", "데이터베이스 연결에 실패했습니다.\ndb_config.py 파일을 확인해주세요.")
+                self.root.destroy()
+                return
+
+            # 사용자 테이블 생성
+            self.db.create_users_table()
+        except Exception as e:
+            messagebox.showerror("연결 오류", f"데이터베이스 연결 오류:\n{str(e)}")
+            self.root.destroy()
+            return
+
+        # MAC 주소 기반 자동 로그인 확인
+        current_mac = get_mac_address()
+        if current_mac and current_mac.lower() in [mac.lower() for mac in AUTO_LOGIN_MAC_ADDRESSES]:
+            # 자동 로그인 시도 (admin 계정)
+            if self.try_auto_login():
+                return  # 자동 로그인 성공 시 로그인 UI 생성하지 않음
+
+        self.create_login_ui()
+
+    def try_auto_login(self):
+        """MAC 주소 기반 자동 로그인 시도"""
+        try:
+            # admin 계정으로 자동 로그인 (비밀번호 확인 없이)
+            user = self.db.get_user_by_username("admin")
+            if user:
+                self.current_user = user
+                self.login_window.destroy()
+                self.on_login_success(user)
+                return True
+        except Exception as e:
+            print(f"자동 로그인 실패: {e}")
+        return False
+
+    def set_ime_korean(self):
+        """IME를 한글 모드로 설정"""
+        if sys.platform == 'win32':
+            try:
+                # 한글 IME 활성화
+                hwnd = ctypes.windll.user32.GetForegroundWindow()
+                ime_hwnd = ctypes.windll.imm32.ImmGetDefaultIMEWnd(hwnd)
+                # 한글 모드로 전환 (0x15 = IME 한글)
+                ctypes.windll.user32.SendMessageW(ime_hwnd, 0x283, 0x1, 0x1)
+            except:
+                pass
+
+    def set_ime_english(self):
+        """IME를 영문 모드로 설정"""
+        if sys.platform == 'win32':
+            try:
+                # 영문 IME 설정
+                hwnd = ctypes.windll.user32.GetForegroundWindow()
+                ime_hwnd = ctypes.windll.imm32.ImmGetDefaultIMEWnd(hwnd)
+                # 영문 모드로 전환
+                ctypes.windll.user32.SendMessageW(ime_hwnd, 0x283, 0x1, 0x0)
+            except:
+                pass
+
+    def draw_logo(self, canvas, x_offset=0, y_offset=0, scale=1.0):
+        """견우물류 로고 그리기 - 컬러풀한 점들"""
+        # 로고 색상 (견우물류 로고의 컬러풀한 점들)
+        colors = [
+            ["#8BC34A", "#4CAF50", "#009688"],           # 초록 계열 (1행)
+            ["#FFEB3B", "#8BC34A", "#4CAF50", "#00BCD4"],  # 노랑~파랑 (2행)
+            ["#FF9800", "#FFEB3B", "#8BC34A", "#00BCD4", "#2196F3"],  # 주황~파랑 (3행)
+            ["#FF5722", "#FF9800", "#FFEB3B", "#4CAF50", "#2196F3"],  # 빨강~파랑 (4행)
+            ["#E91E63", "#FF5722", "#FF9800", "#8BC34A", "#03A9F4"],  # 분홍~하늘 (5행)
+        ]
+
+        dot_size = int(8 * scale)
+        gap = int(10 * scale)
+        start_x = x_offset + int(15 * scale)
+        start_y = y_offset + int(10 * scale)
+
+        for row_idx, row_colors in enumerate(colors):
+            # 각 행의 시작 위치 (피라미드 형태)
+            row_offset = (5 - len(row_colors)) * gap // 2
+            for col_idx, color in enumerate(row_colors):
+                x = start_x + row_offset + col_idx * gap
+                y = start_y + row_idx * gap
+                canvas.create_oval(
+                    x, y, x + dot_size, y + dot_size,
+                    fill=color, outline=""
+                )
+
+    def create_login_ui(self):
+        """로그인 UI 생성 - 밝은 모던 스타일 + 견우물류 로고"""
+        # 색상 정의
+        bg_color = "#f8f9fa"        # 밝은 배경
+        card_color = "#ffffff"       # 흰색 카드
+        primary_color = "#4a90d9"    # 메인 파란색
+        primary_hover = "#3a7bc8"    # 호버 파란색
+        text_dark = "#2c3e50"        # 진한 텍스트
+        text_light = "#7f8c8d"       # 연한 텍스트
+        input_bg = "#f1f3f4"         # 입력창 배경
+        input_border = "#e1e5e9"     # 입력창 테두리
+        accent_color = "#27ae60"     # 액센트 초록색
+
+        # 메인 프레임
+        main_frame = tk.Frame(self.login_window, bg=bg_color)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # 상단 헤더 영역 (밝은 색상)
+        header_frame = tk.Frame(main_frame, bg="#e8f4f8", height=130)
+        header_frame.pack(fill=tk.X)
+        header_frame.pack_propagate(False)
+
+        # 로고 컨테이너 (헤더 안에)
+        logo_frame = tk.Frame(header_frame, bg="#e8f4f8")
+        logo_frame.pack(expand=True)
+
+        # 로고 캔버스 (견우물류 로고 + 텍스트)
+        logo_canvas = tk.Canvas(logo_frame, width=180, height=80, bg="white", highlightthickness=1, highlightbackground="#ddd")
+        logo_canvas.pack(pady=25)
+
+        # 견우물류 로고 그리기
+        self.draw_logo(logo_canvas, x_offset=5, y_offset=10, scale=1.0)
+
+        # "견우물류" 텍스트
+        logo_canvas.create_text(120, 40, text="견우물류", font=("맑은 고딕", 14, "bold"), fill="#333333")
+
+        # 콘텐츠 영역
+        content_frame = tk.Frame(main_frame, bg=bg_color)
+        content_frame.pack(fill=tk.BOTH, expand=True, pady=(20, 20))
+
+        # 타이틀
+        title_label = tk.Label(
+            content_frame,
+            text="업무 타임테이블",
+            font=("맑은 고딕", 18, "bold"),
+            bg=bg_color,
+            fg=text_dark
+        )
+        title_label.pack(pady=(0, 5))
+
+        version_label = tk.Label(
+            content_frame,
+            text=f"Version {VERSION}",
+            font=("맑은 고딕", 9),
+            bg=bg_color,
+            fg=text_light
+        )
+        version_label.pack(pady=(0, 20))
+
+        # 로그인 카드
+        card_frame = tk.Frame(content_frame, bg=card_color, padx=35, pady=25)
+        card_frame.pack(padx=35, fill=tk.X)
+
+        # 카드 그림자 효과 (시뮬레이션)
+        shadow_frame = tk.Frame(content_frame, bg="#e0e0e0", height=2)
+        shadow_frame.pack(fill=tk.X, padx=37)
+
+        # 사용자 ID 입력 (한글 모드)
+        id_frame = tk.Frame(card_frame, bg=card_color)
+        id_frame.pack(fill=tk.X, pady=(0, 12))
+
+        id_label = tk.Label(
+            id_frame,
+            text="사용자 ID (한글)",
+            font=("맑은 고딕", 10, "bold"),
+            bg=card_color,
+            fg=text_dark,
+            anchor="w"
+        )
+        id_label.pack(fill=tk.X)
+
+        id_entry_frame = tk.Frame(id_frame, bg=input_border, padx=1, pady=1)
+        id_entry_frame.pack(fill=tk.X, pady=(5, 0))
+
+        self.username_entry = tk.Entry(
+            id_entry_frame,
+            font=("맑은 고딕", 11),
+            bg=input_bg,
+            fg=text_dark,
+            insertbackground=text_dark,
+            relief=tk.FLAT,
+            highlightthickness=0
+        )
+        self.username_entry.pack(fill=tk.X, ipady=10, padx=10)
+        self.username_entry.focus()
+
+        # 입력창 포커스 효과 + IME 전환
+        def on_id_focus_in(e):
+            id_entry_frame.configure(bg=primary_color)
+            self.login_window.after(50, self.set_ime_korean)  # 한글 모드
+
+        def on_id_focus_out(e):
+            id_entry_frame.configure(bg=input_border)
+
+        self.username_entry.bind("<FocusIn>", on_id_focus_in)
+        self.username_entry.bind("<FocusOut>", on_id_focus_out)
+
+        # 비밀번호 입력 (영문 모드)
+        pw_frame = tk.Frame(card_frame, bg=card_color)
+        pw_frame.pack(fill=tk.X, pady=(0, 20))
+
+        pw_label = tk.Label(
+            pw_frame,
+            text="비밀번호 (영문)",
+            font=("맑은 고딕", 10, "bold"),
+            bg=card_color,
+            fg=text_dark,
+            anchor="w"
+        )
+        pw_label.pack(fill=tk.X)
+
+        pw_entry_frame = tk.Frame(pw_frame, bg=input_border, padx=1, pady=1)
+        pw_entry_frame.pack(fill=tk.X, pady=(5, 0))
+
+        self.password_entry = tk.Entry(
+            pw_entry_frame,
+            font=("맑은 고딕", 11),
+            bg=input_bg,
+            fg=text_dark,
+            insertbackground=text_dark,
+            relief=tk.FLAT,
+            show="●",
+            highlightthickness=0
+        )
+        self.password_entry.pack(fill=tk.X, ipady=10, padx=10)
+
+        # 비밀번호 포커스 효과 + IME 전환
+        def on_pw_focus_in(e):
+            pw_entry_frame.configure(bg=primary_color)
+            self.login_window.after(50, self.set_ime_english)  # 영문 모드
+
+        def on_pw_focus_out(e):
+            pw_entry_frame.configure(bg=input_border)
+
+        self.password_entry.bind("<FocusIn>", on_pw_focus_in)
+        self.password_entry.bind("<FocusOut>", on_pw_focus_out)
+
+        # 엔터키로 로그인
+        self.username_entry.bind("<Return>", lambda e: self.password_entry.focus())
+        self.password_entry.bind("<Return>", lambda e: self.do_login())
+
+        # 로그인 버튼
+        login_btn = tk.Button(
+            card_frame,
+            text="로그인",
+            font=("맑은 고딕", 12, "bold"),
+            bg=primary_color,
+            fg="white",
+            activebackground=primary_hover,
+            activeforeground="white",
+            relief=tk.FLAT,
+            cursor="hand2",
+            command=self.do_login,
+            bd=0
+        )
+        login_btn.pack(fill=tk.X, ipady=12)
+
+        # 버튼 호버 효과
+        def on_btn_enter(e):
+            login_btn.configure(bg=primary_hover)
+        def on_btn_leave(e):
+            login_btn.configure(bg=primary_color)
+        login_btn.bind("<Enter>", on_btn_enter)
+        login_btn.bind("<Leave>", on_btn_leave)
+
+        # 안내 메시지
+        info_frame = tk.Frame(main_frame, bg=bg_color)
+        info_frame.pack(pady=(15, 0))
+
+        info_icon = tk.Label(
+            info_frame,
+            text="ℹ",
+            font=("Segoe UI", 10),
+            bg=bg_color,
+            fg=accent_color
+        )
+        info_icon.pack(side=tk.LEFT, padx=(0, 5))
+
+        info_label = tk.Label(
+            info_frame,
+            text="처음 사용시  ID: admin  /  PW: admin123",
+            font=("맑은 고딕", 9),
+            bg=bg_color,
+            fg=text_light
+        )
+        info_label.pack(side=tk.LEFT)
+
+        # 하단 저작권
+        copyright_label = tk.Label(
+            main_frame,
+            text="© 2025 견우물류. All rights reserved.",
+            font=("맑은 고딕", 8),
+            bg=bg_color,
+            fg="#bdc3c7"
+        )
+        copyright_label.pack(side=tk.BOTTOM, pady=15)
+
+    def do_login(self):
+        """로그인 처리"""
+        username = self.username_entry.get().strip()
+        password = self.password_entry.get()
+
+        if not username:
+            messagebox.showwarning("입력 오류", "사용자 ID를 입력해주세요.")
+            self.username_entry.focus()
+            return
+
+        if not password:
+            messagebox.showwarning("입력 오류", "비밀번호를 입력해주세요.")
+            self.password_entry.focus()
+            return
+
+        # 인증 시도
+        user = self.db.authenticate_user(username, password)
+
+        if user:
+            self.current_user = user
+            self.login_window.destroy()
+            self.db.disconnect()
+            self.on_login_success(user)
+        else:
+            messagebox.showerror("로그인 실패", "사용자 ID 또는 비밀번호가 올바르지 않습니다.")
+            self.password_entry.delete(0, tk.END)
+            self.password_entry.focus()
+
+    def on_close(self):
+        """로그인 창 닫기"""
+        if self.db:
+            self.db.disconnect()
+        self.root.destroy()
 
 
 class TimeTableGUI:
@@ -22,23 +402,28 @@ class TimeTableGUI:
 
     COMPANIES = ["롯데마트", "롯데슈퍼", "지에스", "이마트", "홈플러스", "코스트코"]
 
-    def __init__(self, root):
+    def __init__(self, root, current_user=None):
         self.root = root
-        self.root.title("견우물류 업무 타임테이블 (DB 연동)")
+        self.current_user = current_user
+        user_display = current_user['display_name'] if current_user else ''
+        self.root.title(f"견우물류 업무 타임테이블 - {user_display}")
 
         # 화면 크기 가져오기
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
 
-        # 창 크기 설정 (가로: 최대, 세로: 최대)
-        window_width = screen_width - 10  # 거의 전체 화면
-        window_height = screen_height - 100  # 작업 표시줄 영역 제외
+        # 창 크기 설정 (전체 화면에 가깝게)
+        window_width = screen_width  # 전체 너비
+        window_height = screen_height - 40  # 작업 표시줄 영역만 제외
 
-        # 창 위치 (화면 중앙)
+        # 창 위치 (맨 위, 맨 왼쪽)
         x_position = 0
         y_position = 0
 
         self.root.geometry(f"{window_width}x{window_height}+{x_position}+{y_position}")
+
+        # 창이 최대화되지 않은 상태에서 전체화면처럼 보이도록
+        self.root.update_idletasks()
 
         # 마우스 드래그 선택을 위한 변수
         self.drag_start_time = None
@@ -76,18 +461,61 @@ class TimeTableGUI:
         title_frame = tk.Frame(self.root, bg="#2c3e50", height=60)
         title_frame.pack(fill=tk.X, side=tk.TOP)
 
+        # 타이틀과 사용자 정보를 담을 프레임
+        title_inner = tk.Frame(title_frame, bg="#2c3e50")
+        title_inner.pack(fill=tk.X, pady=10)
+
         title_label = tk.Label(
-            title_frame,
+            title_inner,
             text=f"견우물류 업무 타임테이블 v{VERSION}",
             font=("굴림체", 18, "bold"),
             bg="#2c3e50",
             fg="white"
         )
-        title_label.pack(pady=10)
+        title_label.pack(side=tk.LEFT, padx=20)
+
+        # 사용자 정보 및 로그아웃 버튼 (우측)
+        user_frame = tk.Frame(title_inner, bg="#2c3e50")
+        user_frame.pack(side=tk.RIGHT, padx=20)
+
+        if self.current_user:
+            user_label = tk.Label(
+                user_frame,
+                text=f"{self.current_user['display_name']} 님",
+                font=("굴림체", 10),
+                bg="#2c3e50",
+                fg="#ecf0f1"
+            )
+            user_label.pack(side=tk.LEFT, padx=(0, 10))
+
+            logout_btn = tk.Button(
+                user_frame,
+                text="로그아웃",
+                font=("굴림체", 9),
+                bg="#e74c3c",
+                fg="white",
+                cursor="hand2",
+                command=self.logout
+            )
+            logout_btn.pack(side=tk.LEFT)
 
         # 메뉴바 추가
         menubar = tk.Menu(self.root)
         self.root.config(menu=menubar)
+
+        # 관리 메뉴 (관리자만)
+        if self.current_user and self.current_user.get('is_admin'):
+            admin_menu = tk.Menu(menubar, tearoff=0)
+            menubar.add_cascade(label="관리", menu=admin_menu)
+            admin_menu.add_command(label="사용자 관리", command=self.show_user_management)
+            admin_menu.add_command(label="변경 로그 조회", command=self.show_change_logs)
+            admin_menu.add_separator()
+            admin_menu.add_command(label="비밀번호 변경", command=self.show_change_password)
+        else:
+            # 일반 사용자 메뉴
+            user_menu = tk.Menu(menubar, tearoff=0)
+            menubar.add_cascade(label="설정", menu=user_menu)
+            user_menu.add_command(label="비밀번호 변경", command=self.show_change_password)
 
         # 도움말 메뉴
         help_menu = tk.Menu(menubar, tearoff=0)
@@ -249,6 +677,32 @@ class TimeTableGUI:
         self.date_entry.set_date(date.today())
         self.on_date_changed()
 
+    def create_lunch_cell(self, parent, row, column, width=50, height=30, base_color="white"):
+        """점심시간 셀 생성 (빗금 패턴)"""
+        # Canvas로 빗금 패턴 그리기
+        cell_canvas = tk.Canvas(
+            parent,
+            width=width,
+            height=height,
+            bg=base_color,
+            highlightthickness=1,
+            highlightbackground="#999999"
+        )
+        cell_canvas.grid(row=row, column=column, sticky="nsew")
+
+        # 빗금 그리기 (대각선 패턴)
+        stripe_color = "#cccccc"  # 빗금 색상 (회색)
+        stripe_spacing = 8  # 빗금 간격
+
+        # 왼쪽 위에서 오른쪽 아래로 대각선
+        for i in range(-height, width + height, stripe_spacing):
+            cell_canvas.create_line(
+                i, 0, i + height, height,
+                fill=stripe_color, width=1
+            )
+
+        return cell_canvas
+
     def refresh_timetable(self):
         """타임테이블 새로고침 (시간 가로, 업무 세로 배치)"""
         # 기존 위젯 삭제
@@ -329,11 +783,16 @@ class TimeTableGUI:
         ).grid(row=0, column=1, sticky="nsew")
 
         for col_idx, time_slot in enumerate(time_slots):
+            # 점심시간(12:30~13:00) 헤더는 다른 색상으로 표시
+            is_lunch_time = time_slot in ["12:30", "13:00"]
+            header_bg = "#8B4513" if is_lunch_time else "#2c3e50"  # 점심시간은 갈색 배경
+            header_text = f"🍴{time_slot}" if is_lunch_time else time_slot  # 점심시간 아이콘 추가
+
             header_label = tk.Label(
                 self.canvas_frame,
-                text=time_slot,
+                text=header_text,
                 font=("굴림체", 10, "bold"),
-                bg="#2c3e50",
+                bg=header_bg,
                 fg="white",
                 relief=tk.RIDGE,
                 borderwidth=1,
@@ -424,16 +883,30 @@ class TimeTableGUI:
                     except ValueError:
                         continue
 
+                # 점심시간(12:30~13:00) 여부 확인
+                is_lunch_time = time_slot in ["12:30", "13:00"]
+
                 # 셀 생성 (기본 업무 행은 클릭 불가)
-                task_cell = tk.Label(
-                    self.canvas_frame,
-                    text="",
-                    font=("굴림체", 10),
-                    bg=cell_bg_color,
-                    relief=tk.RIDGE,
-                    borderwidth=1
-                )
-                task_cell.grid(row=row_num, column=col_idx + 2, sticky="nsew")  # +2로 변경
+                if is_lunch_time:
+                    # 점심시간 셀 - 빗금 패턴 적용
+                    task_cell = self.create_lunch_cell(
+                        self.canvas_frame,
+                        row_num,
+                        col_idx + 2,
+                        width=time_col_width,
+                        height=row_height,
+                        base_color=cell_bg_color
+                    )
+                else:
+                    task_cell = tk.Label(
+                        self.canvas_frame,
+                        text="",
+                        font=("굴림체", 10),
+                        bg=cell_bg_color,
+                        relief=tk.RIDGE,
+                        borderwidth=1
+                    )
+                    task_cell.grid(row=row_num, column=col_idx + 2, sticky="nsew")  # +2로 변경
 
                 # 그리드 셀 저장 (기본 업무 행은 이벤트 바인딩 없음)
                 # (widget, company, corp_name, time_slot, is_special)
@@ -499,22 +972,37 @@ class TimeTableGUI:
                             if start_idx <= current_idx <= end_idx:
                                 cell_bg_color = bg_color
                                 # DB에 특수 시간 저장 (기본 업무 시간으로 초기화) - 업체명, 법인명 포함
-                                self.manager.save_special_time(company, corp_name, time_slot, True)
+                                self.manager.save_special_time(company, corp_name, time_slot, True, self.current_user)
                                 break
                         except ValueError:
                             continue
 
+                # 점심시간(12:30~13:00) 여부 확인
+                is_lunch_time = time_slot in ["12:30", "13:00"]
+
                 # 특수상황 셀 생성
-                special_cell = tk.Label(
-                    self.canvas_frame,
-                    text="",
-                    font=("굴림체", 10),
-                    bg=cell_bg_color,
-                    relief=tk.RIDGE,
-                    borderwidth=1,
-                    cursor="hand2"
-                )
-                special_cell.grid(row=row_num, column=col_idx + 2, sticky="nsew")  # +2로 변경
+                if is_lunch_time:
+                    # 점심시간 셀 - 빗금 패턴 적용
+                    special_cell = self.create_lunch_cell(
+                        self.canvas_frame,
+                        row_num,
+                        col_idx + 2,
+                        width=time_col_width,
+                        height=row_height,
+                        base_color=cell_bg_color
+                    )
+                    special_cell.config(cursor="hand2")
+                else:
+                    special_cell = tk.Label(
+                        self.canvas_frame,
+                        text="",
+                        font=("굴림체", 10),
+                        bg=cell_bg_color,
+                        relief=tk.RIDGE,
+                        borderwidth=1,
+                        cursor="hand2"
+                    )
+                    special_cell.grid(row=row_num, column=col_idx + 2, sticky="nsew")  # +2로 변경
 
                 # 클릭 및 드래그 이벤트 바인딩 - 법인명도 전달
                 special_cell.bind("<Button-1>", lambda e, t=time_slot, c=company, cn=corp_name, r=row_num: self.on_cell_drag_start(e, t, c, cn, r))
@@ -880,8 +1368,8 @@ class TimeTableGUI:
                 clicked_widget.config(bg=bg_color)
                 is_colored = True
 
-            # DB에 저장 (업체명, 법인명 포함)
-            self.manager.save_special_time(company, corp_name, time_slot, is_colored)
+            # DB에 저장 (업체명, 법인명 포함) + 로그 기록
+            self.manager.save_special_time(company, corp_name, time_slot, is_colored, self.current_user)
 
             # 드래그된 셀 추가
             self.dragged_cells.add(id(clicked_widget))
@@ -936,9 +1424,9 @@ class TimeTableGUI:
                         widget_under_mouse.config(bg=bg_color)
                         is_colored = True
 
-                    # DB에 저장 (업체명, 법인명 포함)
+                    # DB에 저장 (업체명, 법인명 포함) + 로그 기록
                     if widget_time_slot and widget_company and widget_corp_name:
-                        self.manager.save_special_time(widget_company, widget_corp_name, widget_time_slot, is_colored)
+                        self.manager.save_special_time(widget_company, widget_corp_name, widget_time_slot, is_colored, self.current_user)
 
                     # 드래그된 셀 추가
                     self.dragged_cells.add(id(widget_under_mouse))
@@ -1750,6 +2238,417 @@ class TimeTableGUI:
         """업데이트 확인 (메뉴에서 호출)"""
         manual_update_check(self.root)
 
+    def logout(self):
+        """로그아웃"""
+        if messagebox.askyesno("로그아웃", "로그아웃 하시겠습니까?"):
+            self.manager.close()
+            self.root.destroy()
+            # 새 창으로 로그인 화면 표시
+            new_root = tk.Tk()
+            LoginWindow(new_root, lambda user: start_main_app(new_root, user))
+            new_root.mainloop()
+
+    def show_change_password(self):
+        """비밀번호 변경 창"""
+        if not self.current_user:
+            return
+
+        pw_window = tk.Toplevel(self.root)
+        pw_window.title("비밀번호 변경")
+        pw_window.geometry("350x250")
+        pw_window.resizable(False, False)
+        pw_window.transient(self.root)
+        pw_window.grab_set()
+
+        # 중앙 배치
+        pw_window.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() - 350) // 2
+        y = self.root.winfo_y() + (self.root.winfo_height() - 250) // 2
+        pw_window.geometry(f"+{x}+{y}")
+
+        # 폼
+        form_frame = tk.Frame(pw_window)
+        form_frame.pack(pady=30)
+
+        tk.Label(form_frame, text="현재 비밀번호:", font=("굴림체", 10)).grid(row=0, column=0, padx=10, pady=10, sticky="e")
+        current_pw = tk.Entry(form_frame, font=("굴림체", 10), width=20, show="*")
+        current_pw.grid(row=0, column=1, padx=10, pady=10)
+
+        tk.Label(form_frame, text="새 비밀번호:", font=("굴림체", 10)).grid(row=1, column=0, padx=10, pady=10, sticky="e")
+        new_pw = tk.Entry(form_frame, font=("굴림체", 10), width=20, show="*")
+        new_pw.grid(row=1, column=1, padx=10, pady=10)
+
+        tk.Label(form_frame, text="새 비밀번호 확인:", font=("굴림체", 10)).grid(row=2, column=0, padx=10, pady=10, sticky="e")
+        confirm_pw = tk.Entry(form_frame, font=("굴림체", 10), width=20, show="*")
+        confirm_pw.grid(row=2, column=1, padx=10, pady=10)
+
+        def change_password():
+            current = current_pw.get()
+            new = new_pw.get()
+            confirm = confirm_pw.get()
+
+            if not current or not new or not confirm:
+                messagebox.showwarning("입력 오류", "모든 필드를 입력해주세요.")
+                return
+
+            if new != confirm:
+                messagebox.showwarning("입력 오류", "새 비밀번호가 일치하지 않습니다.")
+                return
+
+            if len(new) < 4:
+                messagebox.showwarning("입력 오류", "비밀번호는 4자 이상이어야 합니다.")
+                return
+
+            # 현재 비밀번호 확인
+            db = Database()
+            db.connect()
+            user = db.authenticate_user(self.current_user['username'], current)
+
+            if not user:
+                messagebox.showerror("오류", "현재 비밀번호가 올바르지 않습니다.")
+                db.disconnect()
+                return
+
+            # 비밀번호 변경
+            if db.change_password(self.current_user['id'], new):
+                messagebox.showinfo("완료", "비밀번호가 변경되었습니다.")
+                pw_window.destroy()
+            else:
+                messagebox.showerror("오류", "비밀번호 변경에 실패했습니다.")
+
+            db.disconnect()
+
+        # 버튼
+        btn_frame = tk.Frame(pw_window)
+        btn_frame.pack(pady=10)
+
+        tk.Button(
+            btn_frame, text="변경", font=("굴림체", 10),
+            bg="#3498db", fg="white", width=10,
+            command=change_password
+        ).pack(side=tk.LEFT, padx=5)
+
+        tk.Button(
+            btn_frame, text="취소", font=("굴림체", 10),
+            bg="#95a5a6", fg="white", width=10,
+            command=pw_window.destroy
+        ).pack(side=tk.LEFT, padx=5)
+
+    def show_change_logs(self):
+        """변경 로그 조회 창 (관리자 전용)"""
+        if not self.current_user or not self.current_user.get('is_admin'):
+            messagebox.showwarning("권한 없음", "관리자만 사용할 수 있습니다.")
+            return
+
+        log_window = tk.Toplevel(self.root)
+        log_window.title("변경 로그 조회")
+        log_window.geometry("1000x600")
+        log_window.resizable(True, True)
+
+        # 필터 프레임
+        filter_frame = tk.Frame(log_window, bg="#ecf0f1", pady=10)
+        filter_frame.pack(fill=tk.X, padx=10, pady=5)
+
+        # 날짜 필터 사용 여부 체크박스
+        use_date_filter = tk.BooleanVar(value=False)
+        date_check = tk.Checkbutton(filter_frame, text="날짜필터:", bg="#ecf0f1",
+                                     variable=use_date_filter)
+        date_check.pack(side=tk.LEFT, padx=5)
+
+        # 날짜 범위 필터
+        start_date_entry = DateEntry(filter_frame, width=12, date_pattern='yyyy-mm-dd')
+        start_date_entry.pack(side=tk.LEFT, padx=2)
+        # 기본값: 7일 전
+        start_date_entry.set_date(datetime.now() - timedelta(days=7))
+
+        tk.Label(filter_frame, text="~", bg="#ecf0f1").pack(side=tk.LEFT, padx=2)
+        end_date_entry = DateEntry(filter_frame, width=12, date_pattern='yyyy-mm-dd')
+        end_date_entry.pack(side=tk.LEFT, padx=2)
+
+        # 업체 필터
+        tk.Label(filter_frame, text="업체:", bg="#ecf0f1").pack(side=tk.LEFT, padx=(20, 5))
+        company_var = tk.StringVar(value="전체")
+        company_combo = ttk.Combobox(filter_frame, textvariable=company_var, width=15, state="readonly")
+        companies = ["전체"] + self.manager.get_companies()
+        company_combo['values'] = companies
+        company_combo.pack(side=tk.LEFT, padx=5)
+
+        # 사용자 필터
+        tk.Label(filter_frame, text="사용자:", bg="#ecf0f1").pack(side=tk.LEFT, padx=(20, 5))
+        user_var = tk.StringVar(value="전체")
+        user_combo = ttk.Combobox(filter_frame, textvariable=user_var, width=15, state="readonly")
+        users = ["전체"]
+        all_users = self.manager.db.get_all_users()
+        if all_users:
+            users.extend([u['username'] for u in all_users])
+        user_combo['values'] = users
+        user_combo.pack(side=tk.LEFT, padx=5)
+
+        # 조회 버튼
+        def search_logs():
+            # Treeview 비우기
+            for item in log_tree.get_children():
+                log_tree.delete(item)
+
+            # 필터 값 가져오기
+            start_dt = None
+            end_dt = None
+            if use_date_filter.get():
+                start_dt = start_date_entry.get_date()
+                end_dt = end_date_entry.get_date()
+
+            company = company_var.get() if company_var.get() != "전체" else None
+            username = user_var.get() if user_var.get() != "전체" else None
+
+            # 로그 조회
+            logs = self.manager.get_change_logs(
+                start_date=start_dt,
+                end_date=end_dt,
+                company=company,
+                username=username
+            )
+
+            # 결과 표시
+            for log in logs:
+                log_tree.insert("", tk.END, values=(
+                    log.get('created_at', '').strftime('%Y-%m-%d %H:%M:%S') if log.get('created_at') else '',
+                    log.get('display_name') or log.get('username', ''),
+                    log.get('work_date', '').strftime('%Y-%m-%d') if log.get('work_date') else '',
+                    log.get('company', ''),
+                    log.get('corp_name', ''),
+                    log.get('time_slot', ''),
+                    log.get('action', ''),
+                    log.get('old_value', ''),
+                    log.get('new_value', '')
+                ))
+
+            # 결과 개수 표시
+            result_label.config(text=f"조회 결과: {len(logs)}건")
+
+        search_btn = tk.Button(
+            filter_frame, text="조회", font=("굴림체", 10),
+            bg="#3498db", fg="white", width=8,
+            command=search_logs
+        )
+        search_btn.pack(side=tk.LEFT, padx=20)
+
+        # 결과 개수 표시
+        result_label = tk.Label(filter_frame, text="", bg="#ecf0f1", font=("굴림체", 10))
+        result_label.pack(side=tk.RIGHT, padx=10)
+
+        # Treeview 프레임
+        tree_frame = tk.Frame(log_window)
+        tree_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+
+        # 스크롤바
+        y_scrollbar = tk.Scrollbar(tree_frame, orient=tk.VERTICAL)
+        y_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        x_scrollbar = tk.Scrollbar(tree_frame, orient=tk.HORIZONTAL)
+        x_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
+
+        # Treeview
+        columns = ("변경일시", "사용자", "작업날짜", "업체", "법인명", "시간", "작업", "이전값", "새값")
+        log_tree = ttk.Treeview(
+            tree_frame, columns=columns, show="headings",
+            yscrollcommand=y_scrollbar.set, xscrollcommand=x_scrollbar.set
+        )
+
+        y_scrollbar.config(command=log_tree.yview)
+        x_scrollbar.config(command=log_tree.xview)
+
+        # 컬럼 설정
+        col_widths = {
+            "변경일시": 140, "사용자": 100, "작업날짜": 100,
+            "업체": 120, "법인명": 120, "시간": 80,
+            "작업": 80, "이전값": 60, "새값": 60
+        }
+
+        for col in columns:
+            log_tree.heading(col, text=col)
+            log_tree.column(col, width=col_widths.get(col, 100), anchor=tk.CENTER)
+
+        log_tree.pack(fill=tk.BOTH, expand=True)
+
+        # 초기 조회
+        search_logs()
+
+        # 닫기 버튼
+        btn_frame = tk.Frame(log_window, pady=10)
+        btn_frame.pack(fill=tk.X)
+
+        tk.Button(
+            btn_frame, text="닫기", font=("굴림체", 10),
+            bg="#95a5a6", fg="white", width=10,
+            command=log_window.destroy
+        ).pack()
+
+    def show_user_management(self):
+        """사용자 관리 창 (관리자 전용)"""
+        if not self.current_user or not self.current_user.get('is_admin'):
+            messagebox.showwarning("권한 없음", "관리자만 사용할 수 있습니다.")
+            return
+
+        user_window = tk.Toplevel(self.root)
+        user_window.title("사용자 관리")
+        user_window.geometry("700x500")
+        user_window.resizable(False, False)
+        user_window.transient(self.root)
+
+        # 중앙 배치
+        user_window.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() - 700) // 2
+        y = self.root.winfo_y() + (self.root.winfo_height() - 500) // 2
+        user_window.geometry(f"+{x}+{y}")
+
+        # 데이터베이스 연결
+        db = Database()
+        db.connect()
+
+        # 사용자 목록 프레임
+        list_frame = tk.Frame(user_window)
+        list_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+
+        # Treeview
+        columns = ("ID", "사용자명", "표시이름", "관리자", "활성", "마지막로그인")
+        tree = ttk.Treeview(list_frame, columns=columns, show="headings", height=12)
+
+        tree.heading("ID", text="ID")
+        tree.heading("사용자명", text="사용자명")
+        tree.heading("표시이름", text="표시이름")
+        tree.heading("관리자", text="관리자")
+        tree.heading("활성", text="활성")
+        tree.heading("마지막로그인", text="마지막 로그인")
+
+        tree.column("ID", width=40, anchor="center")
+        tree.column("사용자명", width=100)
+        tree.column("표시이름", width=120)
+        tree.column("관리자", width=60, anchor="center")
+        tree.column("활성", width=60, anchor="center")
+        tree.column("마지막로그인", width=150)
+
+        scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+
+        tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        def refresh_users():
+            """사용자 목록 새로고침"""
+            for item in tree.get_children():
+                tree.delete(item)
+
+            users = db.get_all_users()
+            for user in users:
+                last_login = user['last_login'].strftime('%Y-%m-%d %H:%M') if user['last_login'] else '-'
+                tree.insert("", tk.END, values=(
+                    user['id'],
+                    user['username'],
+                    user['display_name'],
+                    "O" if user['is_admin'] else "",
+                    "O" if user['is_active'] else "X",
+                    last_login
+                ))
+
+        def add_user():
+            """사용자 추가"""
+            add_window = tk.Toplevel(user_window)
+            add_window.title("사용자 추가")
+            add_window.geometry("350x280")
+            add_window.resizable(False, False)
+            add_window.transient(user_window)
+            add_window.grab_set()
+
+            form = tk.Frame(add_window)
+            form.pack(pady=20)
+
+            tk.Label(form, text="사용자 ID:", font=("굴림체", 10)).grid(row=0, column=0, padx=10, pady=8, sticky="e")
+            username_entry = tk.Entry(form, font=("굴림체", 10), width=20)
+            username_entry.grid(row=0, column=1, padx=10, pady=8)
+
+            tk.Label(form, text="비밀번호:", font=("굴림체", 10)).grid(row=1, column=0, padx=10, pady=8, sticky="e")
+            password_entry = tk.Entry(form, font=("굴림체", 10), width=20, show="*")
+            password_entry.grid(row=1, column=1, padx=10, pady=8)
+
+            tk.Label(form, text="표시이름:", font=("굴림체", 10)).grid(row=2, column=0, padx=10, pady=8, sticky="e")
+            display_entry = tk.Entry(form, font=("굴림체", 10), width=20)
+            display_entry.grid(row=2, column=1, padx=10, pady=8)
+
+            is_admin_var = tk.BooleanVar()
+            tk.Checkbutton(form, text="관리자 권한", variable=is_admin_var, font=("굴림체", 10)).grid(row=3, column=1, pady=8, sticky="w")
+
+            def save_user():
+                username = username_entry.get().strip()
+                password = password_entry.get()
+                display_name = display_entry.get().strip()
+
+                if not username or not password:
+                    messagebox.showwarning("입력 오류", "사용자 ID와 비밀번호는 필수입니다.")
+                    return
+
+                if db.add_user(username, password, display_name, is_admin_var.get()):
+                    messagebox.showinfo("완료", "사용자가 추가되었습니다.")
+                    refresh_users()
+                    add_window.destroy()
+                else:
+                    messagebox.showerror("오류", "사용자 추가에 실패했습니다.\n이미 존재하는 ID일 수 있습니다.")
+
+            tk.Button(form, text="추가", font=("굴림체", 10), bg="#27ae60", fg="white", width=10, command=save_user).grid(row=4, column=0, columnspan=2, pady=20)
+
+        def delete_user():
+            """사용자 삭제"""
+            selected = tree.selection()
+            if not selected:
+                messagebox.showwarning("선택 필요", "삭제할 사용자를 선택하세요.")
+                return
+
+            item = tree.item(selected[0])
+            user_id = item['values'][0]
+            username = item['values'][1]
+
+            if username == 'admin':
+                messagebox.showwarning("삭제 불가", "기본 관리자 계정은 삭제할 수 없습니다.")
+                return
+
+            if messagebox.askyesno("확인", f"'{username}' 사용자를 삭제하시겠습니까?"):
+                if db.delete_user(user_id):
+                    refresh_users()
+                    messagebox.showinfo("완료", "사용자가 삭제되었습니다.")
+                else:
+                    messagebox.showerror("오류", "삭제에 실패했습니다.")
+
+        def reset_password():
+            """비밀번호 초기화"""
+            selected = tree.selection()
+            if not selected:
+                messagebox.showwarning("선택 필요", "사용자를 선택하세요.")
+                return
+
+            item = tree.item(selected[0])
+            user_id = item['values'][0]
+            username = item['values'][1]
+
+            if messagebox.askyesno("확인", f"'{username}'의 비밀번호를 초기화하시겠습니까?\n(초기 비밀번호: 1234)"):
+                if db.change_password(user_id, "1234"):
+                    messagebox.showinfo("완료", "비밀번호가 '1234'로 초기화되었습니다.")
+                else:
+                    messagebox.showerror("오류", "비밀번호 초기화에 실패했습니다.")
+
+        # 버튼 프레임
+        btn_frame = tk.Frame(user_window)
+        btn_frame.pack(pady=10)
+
+        tk.Button(btn_frame, text="사용자 추가", font=("굴림체", 10), bg="#27ae60", fg="white", width=12, command=add_user).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="비밀번호 초기화", font=("굴림체", 10), bg="#f39c12", fg="white", width=12, command=reset_password).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="사용자 삭제", font=("굴림체", 10), bg="#e74c3c", fg="white", width=12, command=delete_user).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="닫기", font=("굴림체", 10), bg="#95a5a6", fg="white", width=12, command=lambda: (db.disconnect(), user_window.destroy())).pack(side=tk.LEFT, padx=5)
+
+        # 창 닫을 때 DB 연결 해제
+        user_window.protocol("WM_DELETE_WINDOW", lambda: (db.disconnect(), user_window.destroy()))
+
+        # 초기 로드
+        refresh_users()
+
     def show_about(self):
         """버전 정보 표시"""
         about_window = tk.Toplevel(self.root)
@@ -1839,13 +2738,21 @@ class TimeTableGUI:
         self.root.destroy()
 
 
-def main():
-    """메인 함수"""
-    root = tk.Tk()
-    app = TimeTableGUI(root)
+def start_main_app(root, user):
+    """로그인 성공 후 메인 앱 시작"""
+    root.deiconify()  # 메인 창 표시
+    app = TimeTableGUI(root, user)
 
     # 프로그램 시작 시 자동으로 업데이트 확인 (백그라운드에서 실행)
     root.after(1000, lambda: check_for_updates_on_startup(root))
+
+
+def main():
+    """메인 함수"""
+    root = tk.Tk()
+
+    # 로그인 창 표시
+    login = LoginWindow(root, lambda user: start_main_app(root, user))
 
     root.mainloop()
 

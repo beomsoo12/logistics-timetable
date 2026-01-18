@@ -20,7 +20,7 @@ class Updater:
     """자동 업데이트 관리 클래스"""
 
     # GitHub 저장소 정보 (실제 저장소로 변경 필요)
-    GITHUB_USER = "your-username"  # 실제 GitHub 사용자명으로 변경
+    GITHUB_USER = "beomsoo12"  # 실제 GitHub 사용자명으로 변경
     GITHUB_REPO = "logistics-timetable"  # 실제 저장소 이름으로 변경
 
     def __init__(self):

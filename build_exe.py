@@ -8,6 +8,11 @@ import shutil
 import subprocess
 from datetime import datetime
 
+# Windows 콘솔 인코딩 설정
+if sys.platform == 'win32':
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 def clean_build_folders():
     """이전 빌드 폴더 정리"""
     print("이전 빌드 폴더를 정리합니다...")
@@ -28,10 +33,10 @@ def build_executable():
     """PyInstaller로 실행 파일 빌드"""
     print("\n실행 파일을 빌드합니다...")
 
-    # PyInstaller 명령어 구성
+    # PyInstaller 명령어 구성 (영문 이름 사용 - 백신 호환성)
     cmd = [
         'pyinstaller',
-        '--name=견우물류타임테이블',
+        '--name=LogisticsTimetable',
         '--onefile',  # 단일 파일로 생성
         '--windowed',  # 콘솔 창 숨김
         '--icon=NONE',  # 아이콘 (없으면 기본)
@@ -46,12 +51,15 @@ def build_executable():
     ]
 
     try:
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-        print("✓ 빌드 성공!")
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True, encoding='utf-8', errors='replace')
+        print("[OK] 빌드 성공!")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"✗ 빌드 실패: {e}")
-        print(e.stderr)
+        print(f"[ERROR] 빌드 실패: {e}")
+        if e.stdout:
+            print("STDOUT:", e.stdout)
+        if e.stderr:
+            print("STDERR:", e.stderr)
         return False
 
 def create_distribution_package():
@@ -66,24 +74,24 @@ def create_distribution_package():
     os.makedirs(dist_folder, exist_ok=True)
 
     # 실행 파일 복사
-    exe_path = os.path.join('dist', '견우물류타임테이블.exe')
+    exe_path = os.path.join('dist', 'LogisticsTimetable.exe')
     if os.path.exists(exe_path):
         shutil.copy2(exe_path, dist_folder)
-        print(f"  ✓ 실행 파일 복사 완료")
+        print(f"  [OK] 실행 파일 복사 완료")
     else:
-        print(f"  ✗ 실행 파일을 찾을 수 없습니다: {exe_path}")
+        print(f"  [ERROR] 실행 파일을 찾을 수 없습니다: {exe_path}")
         return None
 
     # 설정 파일 템플릿 복사
     config_template = 'db_config.py'
     if os.path.exists(config_template):
         shutil.copy2(config_template, os.path.join(dist_folder, 'db_config_template.py'))
-        print(f"  ✓ 설정 파일 템플릿 복사 완료")
+        print(f"  [OK] 설정 파일 템플릿 복사 완료")
 
     # README 복사
     if os.path.exists('README.md'):
         shutil.copy2('README.md', dist_folder)
-        print(f"  ✓ README 파일 복사 완료")
+        print(f"  [OK] README 파일 복사 완료")
 
     # 설치 가이드 생성
     create_install_guide(dist_folder)
@@ -91,7 +99,7 @@ def create_distribution_package():
     # 데이터 폴더 생성
     data_folder = os.path.join(dist_folder, 'data')
     os.makedirs(data_folder, exist_ok=True)
-    print(f"  ✓ data 폴더 생성 완료")
+    print(f"  [OK] data 폴더 생성 완료")
 
     # ZIP 파일로 압축
     print("\n배포 패키지를 압축합니다...")
@@ -100,7 +108,7 @@ def create_distribution_package():
         'zip',
         os.path.join('dist', dist_name)
     )
-    print(f"  ✓ 압축 완료: {zip_path}")
+    print(f"  [OK] 압축 완료: {zip_path}")
 
     return dist_folder, zip_path
 
@@ -181,7 +189,7 @@ CREATE DATABASE LogisticsDB;
     guide_path = os.path.join(dist_folder, '설치가이드.txt')
     with open(guide_path, 'w', encoding='utf-8') as f:
         f.write(guide_content)
-    print(f"  ✓ 설치 가이드 생성 완료")
+    print(f"  [OK] 설치 가이드 생성 완료")
 
 def main():
     """메인 빌드 프로세스"""

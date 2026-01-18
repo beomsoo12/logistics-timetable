@@ -17,6 +17,7 @@ class TimeTableManager:
         # 데이터베이스 연결 및 테이블 생성
         if self.db.connect():
             self.db.create_table()
+            self.db.create_change_log_table()  # 변경 로그 테이블 생성
         else:
             raise Exception("데이터베이스 연결 실패")
 
@@ -153,8 +154,34 @@ class TimeTableManager:
             self.load_data_by_date(self.current_date)
         return success
 
-    def save_special_time(self, company: str, corp_name: str, time_slot: str, is_colored: bool) -> bool:
-        """특수 시간 저장 (업체명, 법인명 조합)"""
+    def save_special_time(self, company: str, corp_name: str, time_slot: str, is_colored: bool,
+                          user_info: dict = None) -> bool:
+        """특수 시간 저장 (업체명, 법인명 조합) + 로그 기록"""
+        # 이전 상태 조회
+        old_value = "OFF"
+        special_times = self.db.get_special_times(self.current_date, company, corp_name)
+        if special_times.get(time_slot, False):
+            old_value = "ON"
+
+        new_value = "ON" if is_colored else "OFF"
+
+        # 상태가 변경된 경우에만 로그 기록
+        if old_value != new_value and user_info:
+            action = "색상 ON" if is_colored else "색상 OFF"
+            self.db.add_change_log(
+                log_type="특수시간",
+                work_date=self.current_date,
+                company=company,
+                corp_name=corp_name,
+                time_slot=time_slot,
+                action=action,
+                old_value=old_value,
+                new_value=new_value,
+                user_id=user_info.get('id'),
+                username=user_info.get('username'),
+                display_name=user_info.get('display_name')
+            )
+
         return self.db.save_special_time(self.current_date, company, corp_name, time_slot, is_colored)
 
     def get_special_times(self, company: str, corp_name: str) -> Dict:
@@ -168,6 +195,11 @@ class TimeTableManager:
     def update_display_order(self, time_slot: str, display_order: int) -> bool:
         """기본 업무 템플릿의 표시 순서 업데이트"""
         return self.db.update_display_order(time_slot, display_order)
+
+    def get_change_logs(self, start_date=None, end_date=None, log_type=None,
+                        company=None, username=None, limit=500):
+        """변경 로그 조회"""
+        return self.db.get_change_logs(start_date, end_date, log_type, company, username, limit)
 
     def close(self):
         """데이터베이스 연결 종료"""

@@ -3,10 +3,17 @@
 """
 
 # 현재 버전 (MAJOR.MINOR.PATCH)
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 
 # 버전 히스토리
 VERSION_HISTORY = {
+    "1.1.1": {
+        "date": "2026-01-18",
+        "changes": [
+            "업데이트 시 폴더 전체 교체 방식으로 변경",
+            "xcopy로 소스 폴더 전체 복사"
+        ]
+    },
     "1.1.0": {
         "date": "2026-01-18",
         "changes": [

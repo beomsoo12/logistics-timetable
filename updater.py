@@ -349,15 +349,19 @@ class Updater:
                     if '_internal' in dirs:
                         new_internal = os.path.join(root, '_internal')
 
-                if new_exe:
+                if new_exe and update_source_dir:
                     # 배치 스크립트를 현재 프로그램 폴더에 생성 (임시 폴더가 아님)
                     batch_path = os.path.join(current_dir, "update_temp.bat")
                     current_internal = os.path.join(current_dir, "_internal")
 
+                    # 폴더 전체 교체 방식으로 업데이트
                     batch_content = f'''@echo off
 chcp 65001 >nul
+echo ============================================
 echo 업데이트를 설치하고 있습니다...
+echo ============================================
 echo 현재 폴더: {current_dir}
+echo 업데이트 소스: {update_source_dir}
 cd /d "{current_dir}"
 timeout /t 3 /nobreak >nul
 
@@ -369,39 +373,33 @@ if exist "{current_exe}" (
     goto retry
 )
 
-echo EXE 파일 복사 중...
-copy /y "{new_exe}" "{current_exe}"
-if errorlevel 1 (
-    echo EXE 복사 실패!
-    pause
-    goto cleanup
-)
-'''
-                    # _internal 폴더 복사 (onedir 모드 필수)
-                    if new_internal:
-                        batch_content += f'''
-echo _internal 폴더 복사 중...
+echo.
+echo [1/3] 기존 _internal 폴더 삭제 중...
 if exist "{current_internal}" (
-    echo 기존 _internal 폴더 삭제 중...
     rmdir /s /q "{current_internal}"
     timeout /t 1 /nobreak >nul
 )
-echo 새 _internal 폴더 복사 중...
-xcopy /s /e /i /y /q "{new_internal}" "{current_internal}"
+
+echo [2/3] 새 파일 복사 중...
+echo 소스 폴더의 모든 파일을 복사합니다...
+xcopy /s /e /y /q "{update_source_dir}\\*.*" "{current_dir}\\"
 if errorlevel 1 (
-    echo _internal 복사 실패!
+    echo 파일 복사 실패!
     pause
     goto cleanup
 )
-'''
-                    # 아이콘 파일도 복사
-                    if new_icon:
-                        icon_dest = os.path.join(current_dir, "app_icon.ico")
-                        batch_content += f'copy /y "{new_icon}" "{icon_dest}"\n'
 
-                    batch_content += f'''
+echo [3/3] 복사 완료 확인 중...
+if not exist "{current_exe}" (
+    echo EXE 파일이 없습니다!
+    pause
+    goto cleanup
+)
+
 echo.
+echo ============================================
 echo 업데이트가 완료되었습니다.
+echo ============================================
 echo 프로그램을 시작합니다...
 timeout /t 1 /nobreak >nul
 cd /d "{current_dir}"

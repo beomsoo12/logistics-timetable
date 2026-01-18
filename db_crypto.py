@@ -18,10 +18,11 @@ except ImportError:
 
 
 def get_machine_key():
-    """머신 고유 키 생성 (컴퓨터명 + 사용자명 기반)"""
-    machine_id = f"{os.environ.get('COMPUTERNAME', 'PC')}_{os.environ.get('USERNAME', 'USER')}"
+    """고정 키 생성 (배포용 - 모든 컴퓨터에서 동일)"""
+    # 고정된 비밀 문자열 사용 (배포용)
+    secret = "GeonWoo_Logistics_Timetable_2026_Secret_Key"
     # 32바이트 키 생성
-    key_hash = hashlib.sha256(machine_id.encode()).digest()
+    key_hash = hashlib.sha256(secret.encode()).digest()
     return base64.urlsafe_b64encode(key_hash)
 
 

@@ -1,13 +1,26 @@
 import pyodbc
 
-# 암호화된 설정 우선 사용
-try:
-    from db_crypto import get_db_config
-    DB_CONFIG = get_db_config()
-    if DB_CONFIG is None:
-        from db_config import DB_CONFIG
-except ImportError:
-    from db_config import DB_CONFIG
+def get_odbc_driver():
+    """설치된 ODBC 드라이버 자동 감지"""
+    drivers = [x for x in pyodbc.drivers() if 'SQL Server' in x]
+    # 우선순위: ODBC Driver 18 > 17 > 13 > SQL Server
+    for preferred in ['ODBC Driver 18 for SQL Server', 'ODBC Driver 17 for SQL Server',
+                      'ODBC Driver 13 for SQL Server', 'SQL Server']:
+        if preferred in drivers:
+            return '{' + preferred + '}'
+    # 아무것도 없으면 첫 번째 SQL Server 드라이버 사용
+    if drivers:
+        return '{' + drivers[0] + '}'
+    return '{SQL Server}'
+
+# DB 설정 (직접 포함)
+DB_CONFIG = {
+    'server': 'gwsv.iptime.org,4433',
+    'database': 'LogisticsDB',
+    'username': 'gwai',
+    'password': '20260101!',
+    'driver': get_odbc_driver()
+}
 
 
 class Database:

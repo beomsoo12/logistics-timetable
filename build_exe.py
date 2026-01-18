@@ -38,7 +38,7 @@ def build_executable():
         'pyinstaller',
         '--name=LogisticsTimetable',
         '--onefile',  # 단일 파일로 생성
-        '--windowed',  # 콘솔 창 숨김
+        '--windowed',  # GUI 앱 (콘솔 숨김)
         '--icon=NONE',  # 아이콘 (없으면 기본)
         '--add-data=version.py;.',  # 버전 파일 포함
         '--hidden-import=pyodbc',
@@ -67,7 +67,7 @@ def create_distribution_package():
     print("\n배포 패키지를 생성합니다...")
 
     # 배포 폴더 이름
-    dist_name = f"LogisticsTimetable_v1.0.0_{datetime.now().strftime('%Y%m%d')}"
+    dist_name = f"LogisticsTimetable_v1.0.2_{datetime.now().strftime('%Y%m%d')}"
     dist_folder = os.path.join('dist', dist_name)
 
     # 배포 폴더 생성
@@ -81,6 +81,20 @@ def create_distribution_package():
     else:
         print(f"  [ERROR] 실행 파일을 찾을 수 없습니다: {exe_path}")
         return None
+
+    # 암호화된 DB 설정 파일 복사 (필수)
+    enc_config = 'db_config.enc'
+    if os.path.exists(enc_config):
+        shutil.copy2(enc_config, dist_folder)
+        print(f"  [OK] 암호화된 DB 설정 파일 복사 완료")
+    else:
+        print(f"  [WARNING] 암호화된 DB 설정 파일이 없습니다: {enc_config}")
+
+    # db_crypto.py 복사 (암호화/복호화 모듈)
+    crypto_file = 'db_crypto.py'
+    if os.path.exists(crypto_file):
+        shutil.copy2(crypto_file, dist_folder)
+        print(f"  [OK] DB 암호화 모듈 복사 완료")
 
     # 설정 파일 템플릿 복사
     config_template = 'db_config.py'

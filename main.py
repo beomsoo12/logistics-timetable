@@ -53,6 +53,12 @@ class LoginWindow:
         y = (screen_height - 520) // 2
         self.login_window.geometry(f"420x520+{x}+{y}")
 
+        # 창을 맨 앞으로 가져오기
+        self.login_window.lift()
+        self.login_window.focus_force()
+        self.login_window.attributes('-topmost', True)
+        self.login_window.after(100, lambda: self.login_window.attributes('-topmost', False))
+
         # 로그인 창 닫으면 프로그램 종료
         self.login_window.protocol("WM_DELETE_WINDOW", self.on_close)
 
@@ -87,12 +93,23 @@ class LoginWindow:
             user = self.db.get_user_by_username("admin")
             if user:
                 self.current_user = user
-                self.login_window.destroy()
+                # 로그인 창 숨기고 메인 창 표시 후 로그인 창 삭제
+                self.login_window.withdraw()
                 self.on_login_success(user)
+                # after를 사용하여 안전하게 로그인 창 삭제
+                self.root.after(100, self.safe_destroy_login_window)
                 return True
         except Exception as e:
             print(f"자동 로그인 실패: {e}")
         return False
+
+    def safe_destroy_login_window(self):
+        """로그인 창 안전하게 삭제"""
+        try:
+            if self.login_window and self.login_window.winfo_exists():
+                self.login_window.destroy()
+        except:
+            pass
 
     def set_ime_korean(self):
         """IME를 한글 모드로 설정"""
@@ -2344,71 +2361,130 @@ class TimeTableGUI:
         log_window.title("변경 로그 조회")
         log_window.geometry("1000x600")
         log_window.resizable(True, True)
+        log_window.transient(self.root)
 
-        # 필터 프레임
-        filter_frame = tk.Frame(log_window, bg="#ecf0f1", pady=10)
-        filter_frame.pack(fill=tk.X, padx=10, pady=5)
+        # 창을 맨 앞으로
+        log_window.lift()
+        log_window.focus_force()
 
-        # 날짜 필터 사용 여부 체크박스
+        # 메인 컨테이너
+        main_container = tk.Frame(log_window)
+        main_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # === 상단 필터 영역 ===
+        filter_frame = tk.LabelFrame(main_container, text="검색 조건", padx=10, pady=10)
+        filter_frame.pack(fill=tk.X, pady=(0, 10))
+
+        # 1행: 날짜 필터
+        row1 = tk.Frame(filter_frame)
+        row1.pack(fill=tk.X, pady=3)
+
         use_date_filter = tk.BooleanVar(value=False)
-        date_check = tk.Checkbutton(filter_frame, text="날짜필터:", bg="#ecf0f1",
-                                     variable=use_date_filter)
-        date_check.pack(side=tk.LEFT, padx=5)
+        tk.Checkbutton(row1, text="날짜필터:", variable=use_date_filter).pack(side=tk.LEFT, padx=5)
 
-        # 날짜 범위 필터
-        start_date_entry = DateEntry(filter_frame, width=12, date_pattern='yyyy-mm-dd')
+        start_date_entry = DateEntry(row1, width=12, date_pattern='yyyy-mm-dd')
         start_date_entry.pack(side=tk.LEFT, padx=2)
-        # 기본값: 7일 전
         start_date_entry.set_date(datetime.now() - timedelta(days=7))
 
-        tk.Label(filter_frame, text="~", bg="#ecf0f1").pack(side=tk.LEFT, padx=2)
-        end_date_entry = DateEntry(filter_frame, width=12, date_pattern='yyyy-mm-dd')
+        tk.Label(row1, text="~").pack(side=tk.LEFT, padx=2)
+        end_date_entry = DateEntry(row1, width=12, date_pattern='yyyy-mm-dd')
         end_date_entry.pack(side=tk.LEFT, padx=2)
 
-        # 업체 필터
-        tk.Label(filter_frame, text="업체:", bg="#ecf0f1").pack(side=tk.LEFT, padx=(20, 5))
+        # 2행: 업체/사용자 필터
+        row2 = tk.Frame(filter_frame)
+        row2.pack(fill=tk.X, pady=3)
+
+        tk.Label(row2, text="업체:").pack(side=tk.LEFT, padx=5)
         company_var = tk.StringVar(value="전체")
-        company_combo = ttk.Combobox(filter_frame, textvariable=company_var, width=15, state="readonly")
-        companies = ["전체"] + self.manager.get_companies()
+        company_combo = ttk.Combobox(row2, textvariable=company_var, width=15, state="readonly")
+        try:
+            companies = ["전체"] + self.manager.get_companies()
+        except:
+            companies = ["전체"]
         company_combo['values'] = companies
         company_combo.pack(side=tk.LEFT, padx=5)
 
-        # 사용자 필터
-        tk.Label(filter_frame, text="사용자:", bg="#ecf0f1").pack(side=tk.LEFT, padx=(20, 5))
+        tk.Label(row2, text="사용자:").pack(side=tk.LEFT, padx=(20, 5))
         user_var = tk.StringVar(value="전체")
-        user_combo = ttk.Combobox(filter_frame, textvariable=user_var, width=15, state="readonly")
+        user_combo = ttk.Combobox(row2, textvariable=user_var, width=15, state="readonly")
         users = ["전체"]
-        all_users = self.manager.db.get_all_users()
-        if all_users:
-            users.extend([u['username'] for u in all_users])
+        try:
+            all_users = self.manager.db.get_all_users()
+            if all_users:
+                users.extend([u['username'] for u in all_users])
+        except:
+            pass
         user_combo['values'] = users
         user_combo.pack(side=tk.LEFT, padx=5)
 
-        # 조회 버튼
+        # 3행: 조회 버튼
+        row3 = tk.Frame(filter_frame)
+        row3.pack(fill=tk.X, pady=5)
+
+        search_btn = tk.Button(row3, text="조회", font=("굴림체", 10, "bold"),
+                               bg="#3498db", fg="white", width=10)
+        search_btn.pack(side=tk.LEFT, padx=5)
+
+        result_label = tk.Label(row3, text="", font=("굴림체", 10))
+        result_label.pack(side=tk.LEFT, padx=10)
+
+        # === 중간 그리드 영역 ===
+        tree_frame = tk.Frame(main_container, relief=tk.SUNKEN, borderwidth=1)
+        tree_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+
+        # Treeview + 스크롤바
+        columns = ("변경일시", "사용자", "작업날짜", "업체", "법인명", "시간", "작업", "이전값", "새값")
+
+        y_scrollbar = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL)
+        y_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        x_scrollbar = ttk.Scrollbar(tree_frame, orient=tk.HORIZONTAL)
+        x_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
+
+        log_tree = ttk.Treeview(
+            tree_frame, columns=columns, show="headings", height=20,
+            yscrollcommand=y_scrollbar.set, xscrollcommand=x_scrollbar.set
+        )
+        log_tree.pack(fill=tk.BOTH, expand=True)
+
+        y_scrollbar.config(command=log_tree.yview)
+        x_scrollbar.config(command=log_tree.xview)
+
+        # 컬럼 설정
+        col_widths = {"변경일시": 140, "사용자": 80, "작업날짜": 90,
+                      "업체": 100, "법인명": 100, "시간": 60,
+                      "작업": 60, "이전값": 50, "새값": 50}
+        for col in columns:
+            log_tree.heading(col, text=col)
+            log_tree.column(col, width=col_widths.get(col, 80), anchor=tk.CENTER)
+
+        # === 하단 버튼 영역 ===
+        btn_frame = tk.Frame(main_container)
+        btn_frame.pack(fill=tk.X)
+
+        tk.Button(btn_frame, text="닫기", font=("굴림체", 10),
+                  bg="#95a5a6", fg="white", width=10,
+                  command=log_window.destroy).pack()
+
+        # === 조회 함수 ===
         def search_logs():
-            # Treeview 비우기
             for item in log_tree.get_children():
                 log_tree.delete(item)
 
-            # 필터 값 가져오기
-            start_dt = None
-            end_dt = None
-            if use_date_filter.get():
-                start_dt = start_date_entry.get_date()
-                end_dt = end_date_entry.get_date()
-
+            start_dt = start_date_entry.get_date() if use_date_filter.get() else None
+            end_dt = end_date_entry.get_date() if use_date_filter.get() else None
             company = company_var.get() if company_var.get() != "전체" else None
             username = user_var.get() if user_var.get() != "전체" else None
 
-            # 로그 조회
-            logs = self.manager.get_change_logs(
-                start_date=start_dt,
-                end_date=end_dt,
-                company=company,
-                username=username
-            )
+            try:
+                logs = self.manager.get_change_logs(
+                    start_date=start_dt, end_date=end_dt,
+                    company=company, username=username
+                )
+            except Exception as e:
+                messagebox.showerror("오류", f"로그 조회 실패: {e}")
+                logs = []
 
-            # 결과 표시
             for log in logs:
                 log_tree.insert("", tk.END, values=(
                     log.get('created_at', '').strftime('%Y-%m-%d %H:%M:%S') if log.get('created_at') else '',
@@ -2422,66 +2498,16 @@ class TimeTableGUI:
                     log.get('new_value', '')
                 ))
 
-            # 결과 개수 표시
             result_label.config(text=f"조회 결과: {len(logs)}건")
 
-        search_btn = tk.Button(
-            filter_frame, text="조회", font=("굴림체", 10),
-            bg="#3498db", fg="white", width=8,
-            command=search_logs
-        )
-        search_btn.pack(side=tk.LEFT, padx=20)
-
-        # 결과 개수 표시
-        result_label = tk.Label(filter_frame, text="", bg="#ecf0f1", font=("굴림체", 10))
-        result_label.pack(side=tk.RIGHT, padx=10)
-
-        # Treeview 프레임
-        tree_frame = tk.Frame(log_window)
-        tree_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
-
-        # 스크롤바
-        y_scrollbar = tk.Scrollbar(tree_frame, orient=tk.VERTICAL)
-        y_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-
-        x_scrollbar = tk.Scrollbar(tree_frame, orient=tk.HORIZONTAL)
-        x_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
-
-        # Treeview
-        columns = ("변경일시", "사용자", "작업날짜", "업체", "법인명", "시간", "작업", "이전값", "새값")
-        log_tree = ttk.Treeview(
-            tree_frame, columns=columns, show="headings",
-            yscrollcommand=y_scrollbar.set, xscrollcommand=x_scrollbar.set
-        )
-
-        y_scrollbar.config(command=log_tree.yview)
-        x_scrollbar.config(command=log_tree.xview)
-
-        # 컬럼 설정
-        col_widths = {
-            "변경일시": 140, "사용자": 100, "작업날짜": 100,
-            "업체": 120, "법인명": 120, "시간": 80,
-            "작업": 80, "이전값": 60, "새값": 60
-        }
-
-        for col in columns:
-            log_tree.heading(col, text=col)
-            log_tree.column(col, width=col_widths.get(col, 100), anchor=tk.CENTER)
-
-        log_tree.pack(fill=tk.BOTH, expand=True)
+        # 버튼에 명령 연결
+        search_btn.config(command=search_logs)
 
         # 초기 조회
-        search_logs()
+        log_window.after(100, search_logs)
 
-        # 닫기 버튼
-        btn_frame = tk.Frame(log_window, pady=10)
-        btn_frame.pack(fill=tk.X)
-
-        tk.Button(
-            btn_frame, text="닫기", font=("굴림체", 10),
-            bg="#95a5a6", fg="white", width=10,
-            command=log_window.destroy
-        ).pack()
+        # 업데이트 강제
+        log_window.update_idletasks()
 
     def show_user_management(self):
         """사용자 관리 창 (관리자 전용)"""
@@ -2742,6 +2768,12 @@ def start_main_app(root, user):
     """로그인 성공 후 메인 앱 시작"""
     root.deiconify()  # 메인 창 표시
     app = TimeTableGUI(root, user)
+
+    # 창을 맨 앞으로 가져오기
+    root.lift()
+    root.focus_force()
+    root.attributes('-topmost', True)
+    root.after(100, lambda: root.attributes('-topmost', False))
 
     # 프로그램 시작 시 자동으로 업데이트 확인 (백그라운드에서 실행)
     root.after(1000, lambda: check_for_updates_on_startup(root))

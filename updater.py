@@ -23,6 +23,9 @@ class Updater:
     GITHUB_USER = "beomsoo12"  # 실제 GitHub 사용자명으로 변경
     GITHUB_REPO = "logistics-timetable"  # 실제 저장소 이름으로 변경
 
+    # 기본 설치 폴더 (고정 경로)
+    DEFAULT_INSTALL_DIR = r"C:\gyunwoo\LogisticsTimetable"
+
     def __init__(self):
         self.current_version = VERSION
         self.latest_version = None
@@ -291,6 +294,10 @@ class Updater:
 
             progress_dialog.update()
 
+            # 고정 설치 폴더 사용
+            install_dir = self.DEFAULT_INSTALL_DIR
+            exe_name = "LogisticsTimetable.exe"
+
             # 현재 실행 경로 확인
             if getattr(sys, 'frozen', False):
                 # PyInstaller EXE 실행 파일인 경우
@@ -301,6 +308,10 @@ class Updater:
                 # 일반 Python 스크립트인 경우
                 current_dir = os.path.dirname(os.path.abspath(__file__))
                 is_exe = False
+
+            # 설치 폴더가 없으면 생성
+            if is_exe:
+                os.makedirs(install_dir, exist_ok=True)
 
             # 임시 디렉토리에 ZIP 파일 다운로드
             temp_dir = tempfile.mkdtemp()
@@ -320,99 +331,184 @@ class Updater:
             progress_dialog.update()
 
             if is_exe:
-                # EXE 파일 업데이트: 기존 폴더 삭제 후 ZIP 압축 해제
-                # 배치 스크립트를 현재 프로그램 폴더에 생성
-                batch_path = os.path.join(current_dir, "update_temp.bat")
-                exe_name = os.path.basename(current_exe)
+                # EXE 파일 업데이트: 고정 폴더로 ZIP 압축 해제
+                # 배치 스크립트를 설치 폴더에 생성
+                batch_path = os.path.join(install_dir, "update_temp.bat")
+                target_exe = os.path.join(install_dir, exe_name)
 
-                # ZIP 파일을 현재 폴더로 복사 (임시 폴더 접근 문제 방지)
-                local_zip_path = os.path.join(current_dir, "update_download.zip")
+                # ZIP 파일을 설치 폴더로 복사 (임시 폴더 접근 문제 방지)
+                local_zip_path = os.path.join(install_dir, "update_download.zip")
                 shutil.copy2(zip_path, local_zip_path)
 
-                # 기존 폴더 삭제 후 ZIP 압축 해제 방식
+                # 로그 파일 경로 (디버깅용)
+                log_path = os.path.join(install_dir, "update_log.txt")
+
+                # 고정 설치 폴더로 업데이트
                 batch_content = f'''@echo off
-chcp 65001 >nul
+chcp 949 >nul
+setlocal enabledelayedexpansion
+
+set "LOG_FILE={log_path}"
+set "INSTALL_DIR={install_dir}"
+set "ZIP_FILE={local_zip_path}"
+set "TARGET_EXE={target_exe}"
+set "EXE_NAME={exe_name}"
+set "CURRENT_EXE={current_exe}"
+
+echo [%date% %time%] 업데이트 시작 > "%LOG_FILE%"
 echo ============================================
 echo 업데이트를 설치하고 있습니다...
 echo ============================================
-echo 현재 폴더: {current_dir}
-echo ZIP 파일: {local_zip_path}
-cd /d "{current_dir}"
-timeout /t 3 /nobreak >nul
+echo 설치 폴더: %INSTALL_DIR%
+echo ZIP 파일: %ZIP_FILE%
+echo 현재 실행 EXE: %CURRENT_EXE%
+echo [%date% %time%] 설치 폴더: %INSTALL_DIR% >> "%LOG_FILE%"
+echo [%date% %time%] ZIP 파일: %ZIP_FILE% >> "%LOG_FILE%"
+echo [%date% %time%] 현재 실행 EXE: %CURRENT_EXE% >> "%LOG_FILE%"
 
+cd /d "%INSTALL_DIR%"
+if errorlevel 1 (
+    echo [오류] 폴더 이동 실패
+    echo [%date% %time%] 폴더 이동 실패 >> "%LOG_FILE%"
+    pause
+    goto end
+)
+
+echo [%date% %time%] 프로그램 종료 대기 시작 >> "%LOG_FILE%"
+echo 프로그램 종료 대기 중... (5초)
+timeout /t 5 /nobreak >nul
+
+REM 현재 실행 중인 EXE 파일 삭제 시도 (다른 폴더에서 실행된 경우)
+echo [%date% %time%] 현재 실행 EXE 삭제 시도: %CURRENT_EXE% >> "%LOG_FILE%"
+del "%CURRENT_EXE%" 2>nul
+
+REM 설치 폴더의 EXE 파일 삭제 시도
+set "RETRY_COUNT=0"
 :retry
-del "{current_exe}" 2>nul
-if exist "{current_exe}" (
-    echo 프로그램 종료 대기 중...
+set /a RETRY_COUNT+=1
+echo [%date% %time%] 삭제 시도 %RETRY_COUNT%회 >> "%LOG_FILE%"
+del "%TARGET_EXE%" 2>nul
+if exist "%TARGET_EXE%" (
+    if %RETRY_COUNT% GEQ 10 (
+        echo [경고] EXE 파일 삭제 실패, 강제 진행
+        echo [%date% %time%] EXE 삭제 실패, 강제 진행 >> "%LOG_FILE%"
+        goto delete_files
+    )
+    echo 프로그램 종료 대기 중... [%RETRY_COUNT%/10]
+    echo [%date% %time%] EXE 파일 아직 사용 중 >> "%LOG_FILE%"
     timeout /t 2 /nobreak >nul
     goto retry
 )
 
+:delete_files
+echo [%date% %time%] 기존 파일 삭제 시작 >> "%LOG_FILE%"
 echo.
 echo [1/4] 기존 파일 삭제 중...
-echo 배치 파일과 ZIP 파일을 제외한 모든 파일 삭제...
-for /f "delims=" %%i in ('dir /b /a-d "{current_dir}" 2^>nul') do (
-    if /i not "%%i"=="update_temp.bat" (
-        if /i not "%%i"=="update_download.zip" (
-            del /f /q "{current_dir}\\%%i" 2>nul
+
+REM 배치 파일, ZIP 파일, 로그 파일, db_config.enc 제외하고 삭제
+for %%f in ("%INSTALL_DIR%\\*.*") do (
+    set "fname=%%~nxf"
+    if /i not "!fname!"=="update_temp.bat" (
+        if /i not "!fname!"=="update_download.zip" (
+            if /i not "!fname!"=="update_log.txt" (
+                if /i not "!fname!"=="db_config.enc" (
+                    del /f /q "%%f" 2>nul
+                    echo [%date% %time%] 삭제: %%f >> "%LOG_FILE%"
+                )
+            )
         )
     )
 )
-for /d %%i in ("{current_dir}\\*") do (
-    rmdir /s /q "%%i" 2>nul
+
+REM 하위 폴더 삭제
+for /d %%d in ("%INSTALL_DIR%\\*") do (
+    rmdir /s /q "%%d" 2>nul
+    echo [%date% %time%] 폴더 삭제: %%d >> "%LOG_FILE%"
 )
 timeout /t 1 /nobreak >nul
 
+echo [%date% %time%] ZIP 압축 해제 시작 >> "%LOG_FILE%"
 echo [2/4] ZIP 파일 압축 해제 중...
-powershell -ExecutionPolicy Bypass -Command "Expand-Archive -Path '{local_zip_path}' -DestinationPath '{current_dir}' -Force"
+
+REM PowerShell 대신 tar 명령 사용 (Windows 10 1903 이상)
+tar -xf "%ZIP_FILE%" -C "%INSTALL_DIR%" 2>nul
 if errorlevel 1 (
-    echo 압축 해제 실패!
-    echo 오류 코드: %errorlevel%
-    pause
-    goto cleanup
+    echo [%date% %time%] tar 실패, PowerShell 시도 >> "%LOG_FILE%"
+    REM tar 실패 시 PowerShell 사용
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "try {{ Expand-Archive -LiteralPath '%ZIP_FILE%' -DestinationPath '%INSTALL_DIR%' -Force; exit 0 }} catch {{ Write-Host $_.Exception.Message; exit 1 }}"
+    if errorlevel 1 (
+        echo [오류] 압축 해제 실패!
+        echo [%date% %time%] PowerShell 압축 해제도 실패 >> "%LOG_FILE%"
+        echo 로그 파일 확인: %LOG_FILE%
+        pause
+        goto end
+    )
 )
+echo [%date% %time%] 압축 해제 완료 >> "%LOG_FILE%"
 
 echo [3/4] 파일 이동 중...
-REM ZIP 내부 폴더에서 파일들을 현재 폴더로 이동
-for /d %%d in ("{current_dir}\\*") do (
-    if exist "%%d\\{exe_name}" (
+echo [%date% %time%] 파일 이동 시작 >> "%LOG_FILE%"
+
+REM ZIP 내부 폴더에서 파일들을 설치 폴더로 이동
+set "FOUND_FOLDER="
+for /d %%d in ("%INSTALL_DIR%\\*") do (
+    if exist "%%d\\%EXE_NAME%" (
+        set "FOUND_FOLDER=%%d"
+        echo [%date% %time%] 소스 폴더 발견: %%d >> "%LOG_FILE%"
         echo 소스 폴더: %%d
-        xcopy /s /e /y /q "%%d\\*.*" "{current_dir}\\"
+        xcopy /s /e /y /q "%%d\\*.*" "%INSTALL_DIR%\\" >nul 2>&1
+        if errorlevel 1 (
+            echo [오류] 파일 복사 실패
+            echo [%date% %time%] xcopy 실패 >> "%LOG_FILE%"
+            pause
+            goto end
+        )
         rmdir /s /q "%%d" 2>nul
         goto check_exe
     )
 )
 
+if not defined FOUND_FOLDER (
+    echo [%date% %time%] 소스 폴더를 찾지 못함, 직접 압축 해제된 것으로 간주 >> "%LOG_FILE%"
+)
+
 :check_exe
 echo [4/4] 설치 확인 중...
-if not exist "{current_exe}" (
-    echo EXE 파일이 없습니다!
+echo [%date% %time%] 설치 확인 >> "%LOG_FILE%"
+
+if not exist "%TARGET_EXE%" (
+    echo [오류] EXE 파일이 없습니다!
+    echo [%date% %time%] EXE 파일 없음 >> "%LOG_FILE%"
     echo 현재 폴더 내용:
-    dir "{current_dir}"
+    dir "%INSTALL_DIR%" >> "%LOG_FILE%"
+    dir "%INSTALL_DIR%"
     pause
-    goto cleanup
+    goto end
 )
 
 echo.
 echo ============================================
 echo 업데이트가 완료되었습니다.
 echo ============================================
+echo [%date% %time%] 업데이트 완료 >> "%LOG_FILE%"
+
+REM 다운로드한 ZIP 파일 삭제
+del /f /q "%ZIP_FILE%" 2>nul
+
 echo 프로그램을 시작합니다...
 timeout /t 1 /nobreak >nul
 
-REM 다운로드한 ZIP 파일 삭제
-del /f /q "{local_zip_path}" 2>nul
+cd /d "%INSTALL_DIR%"
+start "" /D "%INSTALL_DIR%" "%TARGET_EXE%"
 
-cd /d "{current_dir}"
-start "" /D "{current_dir}" "{current_exe}"
-
-:cleanup
-echo 임시 파일 정리 중...
+:end
+echo [%date% %time%] 배치 스크립트 종료 >> "%LOG_FILE%"
 rmdir /s /q "{temp_dir}" 2>nul
 del "%~f0"
 '''
 
-                with open(batch_path, 'w', encoding='utf-8') as f:
+                # 배치 파일은 cp949 인코딩으로 저장 (한글 Windows 호환)
+                with open(batch_path, 'w', encoding='cp949') as f:
                     f.write(batch_content)
 
                 progress_dialog.destroy()
@@ -421,13 +517,15 @@ del "%~f0"
                 messagebox.showinfo(
                     "업데이트",
                     f"v{self.latest_version} 업데이트를 설치합니다.\n\n"
+                    f"설치 폴더: {install_dir}\n\n"
                     "프로그램이 자동으로 재시작됩니다."
                 )
 
                 # 배치 스크립트 실행 후 프로그램 종료
+                # 콘솔 창을 보이게 하여 오류 확인 가능 (디버깅용)
                 subprocess.Popen(
                     ['cmd', '/c', batch_path],
-                    creationflags=subprocess.CREATE_NO_WINDOW
+                    creationflags=subprocess.CREATE_NEW_CONSOLE
                 )
 
                 # 프로그램 종료

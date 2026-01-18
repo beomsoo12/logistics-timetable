@@ -11,6 +11,142 @@ import sys
 import os
 import uuid
 
+
+class RoundedButton(tk.Canvas):
+    """둥근 모서리 버튼 클래스"""
+
+    def __init__(self, parent, text="", command=None, font=("굴림체", 9),
+                 bg="#3498db", fg="white", width=None, height=None,
+                 radius=10, padx=12, pady=6, cursor="hand2", **kwargs):
+
+        # 폰트 크기에 따른 기본 크기 계산
+        font_family = font[0] if isinstance(font, tuple) else "굴림체"
+        font_size = font[1] if isinstance(font, tuple) and len(font) > 1 else 9
+        font_weight = font[2] if isinstance(font, tuple) and len(font) > 2 else "normal"
+
+        # 텍스트 길이에 따른 너비 계산 (한글은 더 넓게) - 30% 증가
+        char_width = font_size * 1.6
+        text_width = len(text) * char_width
+
+        if width is None:
+            btn_width = int((text_width + padx * 2) * 1.3)
+        else:
+            btn_width = int(width * 1.3) if width > 50 else int(width * font_size * 1.3)
+
+        if height is None:
+            btn_height = int((font_size * 2.2 + pady) * 1.3)
+        else:
+            btn_height = int(height * 1.3)
+
+        # 최소 크기 보장 (30% 증가)
+        btn_width = max(btn_width, 65)
+        btn_height = max(btn_height, 30)
+
+        super().__init__(parent, width=btn_width, height=btn_height,
+                        highlightthickness=0, bg=parent.cget('bg') if hasattr(parent, 'cget') else "#f0f0f0",
+                        cursor=cursor, **kwargs)
+
+        self.command = command
+        self.bg_color = bg
+        self.fg_color = fg
+        self.text = text
+        self.font = (font_family, font_size, font_weight)
+        self.radius = radius
+        self.btn_width = btn_width
+        self.btn_height = btn_height
+        self.hover_color = self._adjust_color(bg, -20)  # 약간 어두운 색
+        self.is_pressed = False
+
+        self._draw_button(self.bg_color)
+
+        # 이벤트 바인딩
+        self.bind("<Enter>", self._on_enter)
+        self.bind("<Leave>", self._on_leave)
+        self.bind("<Button-1>", self._on_press)
+        self.bind("<ButtonRelease-1>", self._on_release)
+
+    def _adjust_color(self, color, amount):
+        """색상을 밝게 또는 어둡게 조정"""
+        try:
+            # 색상을 RGB로 변환
+            if color.startswith('#'):
+                r = int(color[1:3], 16)
+                g = int(color[3:5], 16)
+                b = int(color[5:7], 16)
+            else:
+                # 색상 이름을 RGB로 변환 시도
+                return color
+
+            # 조정
+            r = max(0, min(255, r + amount))
+            g = max(0, min(255, g + amount))
+            b = max(0, min(255, b + amount))
+
+            return f'#{r:02x}{g:02x}{b:02x}'
+        except:
+            return color
+
+    def _draw_button(self, color):
+        """둥근 사각형 버튼 그리기"""
+        self.delete("all")
+
+        x1, y1 = 2, 2
+        x2, y2 = self.btn_width - 2, self.btn_height - 2
+        r = min(self.radius, (x2-x1)//2, (y2-y1)//2)
+
+        # 둥근 사각형 그리기
+        self.create_arc(x1, y1, x1+2*r, y1+2*r, start=90, extent=90, fill=color, outline=color)
+        self.create_arc(x2-2*r, y1, x2, y1+2*r, start=0, extent=90, fill=color, outline=color)
+        self.create_arc(x1, y2-2*r, x1+2*r, y2, start=180, extent=90, fill=color, outline=color)
+        self.create_arc(x2-2*r, y2-2*r, x2, y2, start=270, extent=90, fill=color, outline=color)
+
+        self.create_rectangle(x1+r, y1, x2-r, y2, fill=color, outline=color)
+        self.create_rectangle(x1, y1+r, x2, y2-r, fill=color, outline=color)
+
+        # 텍스트 그리기
+        self.create_text(self.btn_width//2, self.btn_height//2,
+                        text=self.text, fill=self.fg_color, font=self.font)
+
+    def _on_enter(self, event):
+        """마우스 호버"""
+        self._draw_button(self.hover_color)
+
+    def _on_leave(self, event):
+        """마우스 떠남"""
+        self._draw_button(self.bg_color)
+        self.is_pressed = False
+
+    def _on_press(self, event):
+        """버튼 클릭"""
+        self.is_pressed = True
+        pressed_color = self._adjust_color(self.bg_color, -40)
+        self._draw_button(pressed_color)
+
+    def _on_release(self, event):
+        """버튼 릴리즈"""
+        if self.is_pressed:
+            self._draw_button(self.hover_color)
+            if self.command:
+                self.command()
+        self.is_pressed = False
+
+    def config(self, **kwargs):
+        """설정 변경"""
+        if 'text' in kwargs:
+            self.text = kwargs['text']
+        if 'bg' in kwargs:
+            self.bg_color = kwargs['bg']
+            self.hover_color = self._adjust_color(kwargs['bg'], -20)
+        if 'fg' in kwargs:
+            self.fg_color = kwargs['fg']
+        if 'command' in kwargs:
+            self.command = kwargs['command']
+        self._draw_button(self.bg_color)
+
+    def configure(self, **kwargs):
+        """config의 별칭"""
+        self.config(**kwargs)
+
 # 자동 로그인 허용 MAC 주소 목록
 AUTO_LOGIN_MAC_ADDRESSES = [
     "20:16:01:25:00:0f",  # 개발자 PC
@@ -267,6 +403,9 @@ class LoginWindow:
         self.username_entry.pack(fill=tk.X, ipady=10, padx=10)
         self.username_entry.focus()
 
+        # 로그인 창 열릴 때 한글 모드로 시작
+        self.login_window.after(100, self.set_ime_korean)
+
         # 입력창 포커스 효과 + IME 전환
         def on_id_focus_in(e):
             id_entry_frame.configure(bg=primary_color)
@@ -322,29 +461,19 @@ class LoginWindow:
         self.username_entry.bind("<Return>", lambda e: self.password_entry.focus())
         self.password_entry.bind("<Return>", lambda e: self.do_login())
 
-        # 로그인 버튼
-        login_btn = tk.Button(
+        # 로그인 버튼 (둥근 모서리)
+        login_btn = RoundedButton(
             card_frame,
             text="로그인",
-            font=("맑은 고딕", 12, "bold"),
+            font=("맑은 고딕", 11, "bold"),
             bg=primary_color,
             fg="white",
-            activebackground=primary_hover,
-            activeforeground="white",
-            relief=tk.FLAT,
-            cursor="hand2",
-            command=self.do_login,
-            bd=0
+            width=280,
+            height=35,
+            radius=6,
+            command=self.do_login
         )
-        login_btn.pack(fill=tk.X, ipady=12)
-
-        # 버튼 호버 효과
-        def on_btn_enter(e):
-            login_btn.configure(bg=primary_hover)
-        def on_btn_leave(e):
-            login_btn.configure(bg=primary_color)
-        login_btn.bind("<Enter>", on_btn_enter)
-        login_btn.bind("<Leave>", on_btn_leave)
+        login_btn.pack(pady=(10, 0))
 
         # 안내 메시지
         info_frame = tk.Frame(main_frame, bg=bg_color)
@@ -517,16 +646,28 @@ class TimeTableGUI:
             )
             user_label.pack(side=tk.LEFT, padx=(0, 10))
 
-            logout_btn = tk.Button(
+            logout_btn = RoundedButton(
                 user_frame,
                 text="로그아웃",
-                font=("굴림체", 9),
+                font=("굴림체", 11),
                 bg="#e74c3c",
                 fg="white",
-                cursor="hand2",
+                radius=6,
                 command=self.logout
             )
             logout_btn.pack(side=tk.LEFT)
+
+            # 종료 버튼
+            exit_btn = RoundedButton(
+                user_frame,
+                text="종료",
+                font=("굴림체", 11),
+                bg="#7f8c8d",
+                fg="white",
+                radius=6,
+                command=self.exit_program
+            )
+            exit_btn.pack(side=tk.LEFT, padx=(10, 0))
 
         # 메뉴바 추가
         menubar = tk.Menu(self.root)
@@ -561,15 +702,15 @@ class TimeTableGUI:
         tk.Label(
             date_frame,
             text="작업 날짜:",
-            font=("굴림체", 11, "bold"),
+            font=("굴림체", 22, "bold"),
             bg="#34495e",
             fg="white"
         ).pack(side=tk.LEFT, padx=(20, 10), pady=10)
 
         self.date_entry = DateEntry(
             date_frame,
-            font=("굴림체", 10),
-            width=15,
+            font=("굴림체", 20),
+            width=12,
             background='darkblue',
             foreground='white',
             borderwidth=2,
@@ -579,61 +720,61 @@ class TimeTableGUI:
         self.date_entry.pack(side=tk.LEFT, padx=5, pady=10)
         self.date_entry.bind("<<DateEntrySelected>>", self.on_date_changed)
 
-        # 날짜 이동 버튼
-        btn_prev = tk.Button(
+        # 날짜 이동 버튼 (둥근 모서리)
+        btn_prev = RoundedButton(
             date_frame,
             text="◀ 이전",
-            font=("굴림체", 9),
+            font=("굴림체", 11),
             bg="#3498db",
             fg="white",
-            command=self.prev_date,
-            cursor="hand2"
+            radius=6,
+            command=self.prev_date
         )
         btn_prev.pack(side=tk.LEFT, padx=5, pady=10)
 
-        btn_today = tk.Button(
+        btn_today = RoundedButton(
             date_frame,
             text="오늘",
-            font=("굴림체", 9),
+            font=("굴림체", 11),
             bg="#27ae60",
             fg="white",
-            command=self.goto_today,
-            cursor="hand2"
+            radius=6,
+            command=self.goto_today
         )
         btn_today.pack(side=tk.LEFT, padx=5, pady=10)
 
-        btn_next = tk.Button(
+        btn_next = RoundedButton(
             date_frame,
             text="다음 ▶",
-            font=("굴림체", 9),
+            font=("굴림체", 11),
             bg="#3498db",
             fg="white",
-            command=self.next_date,
-            cursor="hand2"
+            radius=6,
+            command=self.next_date
         )
         btn_next.pack(side=tk.LEFT, padx=5, pady=10)
 
-        # 기본 업무 관리 버튼
-        btn_manage_default = tk.Button(
+        # 기본 업무 관리 버튼 (둥근 모서리)
+        btn_manage_default = RoundedButton(
             date_frame,
             text="기본 업무 관리",
-            font=("굴림체", 9),
+            font=("굴림체", 11),
             bg="#16a085",
             fg="white",
-            command=self.manage_default_tasks,
-            cursor="hand2"
+            radius=6,
+            command=self.manage_default_tasks
         )
         btn_manage_default.pack(side=tk.LEFT, padx=5, pady=10)
 
-        # 기간별 통계 버튼
-        btn_period_summary = tk.Button(
+        # 기간별 통계 버튼 (둥근 모서리)
+        btn_period_summary = RoundedButton(
             date_frame,
             text="기간별 통계",
-            font=("굴림체", 9),
+            font=("굴림체", 11),
             bg="#2980b9",
             fg="white",
-            command=self.show_period_summary,
-            cursor="hand2"
+            radius=6,
+            command=self.show_period_summary
         )
         btn_period_summary.pack(side=tk.LEFT, padx=5, pady=10)
 
@@ -1821,7 +1962,7 @@ class TimeTableGUI:
             manage_window.lift()
             manage_window.focus_force()
 
-        color_btn = tk.Button(color_frame, text="색상 선택", command=choose_color, font=("굴림체", 9))
+        color_btn = RoundedButton(color_frame, text="색상 선택", command=choose_color, font=("굴림체", 9), bg="#9b59b6", fg="white", radius=6)
         color_btn.pack(side=tk.LEFT, padx=5)
 
         # 색상 코드 직접 입력
@@ -1847,7 +1988,7 @@ class TimeTableGUI:
             color_preview.config(bg="#d5f4e6")
             color_entry.delete(0, tk.END)
 
-        reset_color_btn = tk.Button(color_frame, text="초기화", command=reset_color, font=("굴림체", 9))
+        reset_color_btn = RoundedButton(color_frame, text="초기화", command=reset_color, font=("굴림체", 9), bg="#95a5a6", fg="white", radius=6)
         reset_color_btn.pack(side=tk.LEFT, padx=5)
 
         # 버튼들
@@ -2092,41 +2233,49 @@ class TimeTableGUI:
             else:
                 messagebox.showerror("오류", "삽입에 실패했습니다.")
 
-        tk.Button(
+        RoundedButton(
             btn_frame,
             text="삽입",
             font=("굴림체", 10),
             bg="#3498db",
             fg="white",
+            radius=6,
+            width=120,
             command=insert_default
-        ).pack(fill=tk.X, pady=2)
+        ).pack(pady=3)
 
-        tk.Button(
+        RoundedButton(
             btn_frame,
             text="수정",
             font=("굴림체", 10),
             bg="#27ae60",
             fg="white",
+            radius=6,
+            width=120,
             command=add_default
-        ).pack(fill=tk.X, pady=2)
+        ).pack(pady=3)
 
-        tk.Button(
+        RoundedButton(
             btn_frame,
             text="삭제",
             font=("굴림체", 10),
             bg="#e74c3c",
             fg="white",
+            radius=6,
+            width=120,
             command=delete_default
-        ).pack(fill=tk.X, pady=2)
+        ).pack(pady=3)
 
-        tk.Button(
+        RoundedButton(
             btn_frame,
             text="닫기",
             font=("굴림체", 10),
             bg="#95a5a6",
             fg="white",
+            radius=6,
+            width=120,
             command=manage_window.destroy
-        ).pack(fill=tk.X, pady=2)
+        ).pack(pady=3)
 
         # 초기 데이터 로드
         refresh_default_list()
@@ -2365,16 +2514,15 @@ class TimeTableGUI:
             # 텍스트 편집 불가 설정
             result_text.config(state=tk.DISABLED)
 
-        # 조회 버튼
-        btn_query = tk.Button(
+        # 조회 버튼 (둥근 모서리)
+        btn_query = RoundedButton(
             period_frame,
             text="조회",
             font=("굴림체", 10, "bold"),
             bg="#27ae60",
             fg="white",
-            command=calculate_period_summary,
-            cursor="hand2",
-            width=10
+            radius=6,
+            command=calculate_period_summary
         )
         btn_query.pack(side=tk.LEFT, padx=20, pady=10)
 
@@ -2400,6 +2548,12 @@ class TimeTableGUI:
             new_root = tk.Tk()
             LoginWindow(new_root, lambda user: start_main_app(new_root, user))
             new_root.mainloop()
+
+    def exit_program(self):
+        """프로그램 종료"""
+        if messagebox.askyesno("종료", "프로그램을 종료하시겠습니까?"):
+            self.manager.close()
+            self.root.destroy()
 
     def show_change_password(self):
         """비밀번호 변경 창"""
@@ -2475,15 +2629,15 @@ class TimeTableGUI:
         btn_frame = tk.Frame(pw_window)
         btn_frame.pack(pady=10)
 
-        tk.Button(
+        RoundedButton(
             btn_frame, text="변경", font=("굴림체", 10),
-            bg="#3498db", fg="white", width=10,
+            bg="#3498db", fg="white", radius=6,
             command=change_password
         ).pack(side=tk.LEFT, padx=5)
 
-        tk.Button(
+        RoundedButton(
             btn_frame, text="취소", font=("굴림체", 10),
-            bg="#95a5a6", fg="white", width=10,
+            bg="#95a5a6", fg="white", radius=6,
             command=pw_window.destroy
         ).pack(side=tk.LEFT, padx=5)
 
@@ -2557,8 +2711,8 @@ class TimeTableGUI:
         row3 = tk.Frame(filter_frame)
         row3.pack(fill=tk.X, pady=5)
 
-        search_btn = tk.Button(row3, text="조회", font=("굴림체", 10, "bold"),
-                               bg="#3498db", fg="white", width=10)
+        search_btn = RoundedButton(row3, text="조회", font=("굴림체", 10, "bold"),
+                               bg="#3498db", fg="white", radius=6)
         search_btn.pack(side=tk.LEFT, padx=5)
 
         result_label = tk.Label(row3, text="", font=("굴림체", 10))
@@ -2598,8 +2752,8 @@ class TimeTableGUI:
         btn_frame = tk.Frame(main_container)
         btn_frame.pack(fill=tk.X)
 
-        tk.Button(btn_frame, text="닫기", font=("굴림체", 10),
-                  bg="#95a5a6", fg="white", width=10,
+        RoundedButton(btn_frame, text="닫기", font=("굴림체", 10),
+                  bg="#95a5a6", fg="white", radius=6,
                   command=log_window.destroy).pack()
 
         # === 조회 함수 ===
@@ -2755,7 +2909,8 @@ class TimeTableGUI:
                 else:
                     messagebox.showerror("오류", "사용자 추가에 실패했습니다.\n이미 존재하는 ID일 수 있습니다.")
 
-            tk.Button(form, text="추가", font=("굴림체", 10), bg="#27ae60", fg="white", width=10, command=save_user).grid(row=4, column=0, columnspan=2, pady=20)
+            add_btn = RoundedButton(form, text="추가", font=("굴림체", 10), bg="#27ae60", fg="white", radius=6, command=save_user)
+            add_btn.grid(row=4, column=0, columnspan=2, pady=20)
 
         def delete_user():
             """사용자 삭제"""
@@ -2800,10 +2955,10 @@ class TimeTableGUI:
         btn_frame = tk.Frame(user_window)
         btn_frame.pack(pady=10)
 
-        tk.Button(btn_frame, text="사용자 추가", font=("굴림체", 10), bg="#27ae60", fg="white", width=12, command=add_user).pack(side=tk.LEFT, padx=5)
-        tk.Button(btn_frame, text="비밀번호 초기화", font=("굴림체", 10), bg="#f39c12", fg="white", width=12, command=reset_password).pack(side=tk.LEFT, padx=5)
-        tk.Button(btn_frame, text="사용자 삭제", font=("굴림체", 10), bg="#e74c3c", fg="white", width=12, command=delete_user).pack(side=tk.LEFT, padx=5)
-        tk.Button(btn_frame, text="닫기", font=("굴림체", 10), bg="#95a5a6", fg="white", width=12, command=lambda: (db.disconnect(), user_window.destroy())).pack(side=tk.LEFT, padx=5)
+        RoundedButton(btn_frame, text="사용자 추가", font=("굴림체", 10), bg="#27ae60", fg="white", radius=6, command=add_user).pack(side=tk.LEFT, padx=5)
+        RoundedButton(btn_frame, text="비밀번호 초기화", font=("굴림체", 10), bg="#f39c12", fg="white", radius=6, command=reset_password).pack(side=tk.LEFT, padx=5)
+        RoundedButton(btn_frame, text="사용자 삭제", font=("굴림체", 10), bg="#e74c3c", fg="white", radius=6, command=delete_user).pack(side=tk.LEFT, padx=5)
+        RoundedButton(btn_frame, text="닫기", font=("굴림체", 10), bg="#95a5a6", fg="white", radius=6, command=lambda: (db.disconnect(), user_window.destroy())).pack(side=tk.LEFT, padx=5)
 
         # 창 닫을 때 DB 연결 해제
         user_window.protocol("WM_DELETE_WINDOW", lambda: (db.disconnect(), user_window.destroy()))
@@ -2880,17 +3035,15 @@ class TimeTableGUI:
 
         changes_text.config(state=tk.DISABLED)
 
-        # 닫기 버튼
-        close_btn = tk.Button(
+        # 닫기 버튼 (둥근 모서리)
+        close_btn = RoundedButton(
             about_window,
             text="닫기",
             font=("굴림체", 10),
             bg="#95a5a6",
             fg="white",
-            command=about_window.destroy,
-            cursor="hand2",
-            width=10,
-            pady=5
+            radius=6,
+            command=about_window.destroy
         )
         close_btn.pack(pady=20)
 

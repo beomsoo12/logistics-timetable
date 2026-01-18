@@ -1935,7 +1935,7 @@ class TimeTableGUI:
         default_tree.bind("<<TreeviewSelect>>", on_tree_select)
 
         def add_default():
-            """기본 업무 추가 - 기본업무는 템플릿에, 특수상황은 실제 DB에 저장"""
+            """기본 업무 수정 - 기본업무는 템플릿에, 특수상황은 실제 DB에 저장"""
             time_slot = time_combo.get()
             end_time = end_time_combo.get()
             company = company_combo.get()
@@ -1954,6 +1954,10 @@ class TimeTableGUI:
                 display_order = int(display_order_str) if display_order_str else None
             except ValueError:
                 messagebox.showwarning("입력 오류", "표시순서는 숫자여야 합니다.")
+                return
+
+            # 수정 확인
+            if not messagebox.askyesno("수정 확인", f"순서 {display_order}번 ({time_slot}) 기본 업무를 수정하시겠습니까?"):
                 return
 
             # 기본 업무 템플릿 저장 (색상 포함)
@@ -1980,9 +1984,9 @@ class TimeTableGUI:
                 selected_color["value"] = ""
                 # 메인 화면 새로고침
                 self.refresh_timetable()
-                messagebox.showinfo("성공", "기본 업무 및 특수상황이 저장되었습니다.")
+                messagebox.showinfo("성공", "기본 업무가 수정되었습니다.")
             else:
-                messagebox.showerror("오류", "저장에 실패했습니다.")
+                messagebox.showerror("오류", "수정에 실패했습니다.")
 
         def delete_default():
             """기본 업무 삭제"""
@@ -2048,6 +2052,10 @@ class TimeTableGUI:
                 messagebox.showwarning("입력 오류", "표시순서는 숫자여야 합니다.")
                 return
 
+            # 삽입 확인
+            if not messagebox.askyesno("삽입 확인", f"순서 {new_display_order}번에 새 기본 업무를 삽입하시겠습니까?\n\n기존 {new_display_order}번 이상 항목들은 순서가 1씩 밀립니다."):
+                return
+
             # 1. 기존 데이터에서 new_display_order 이상인 항목들의 순서를 +1씩 증가
             default_tasks = self.manager.get_default_tasks()
             tasks_to_update = []
@@ -2095,7 +2103,7 @@ class TimeTableGUI:
 
         tk.Button(
             btn_frame,
-            text="저장",
+            text="수정",
             font=("굴림체", 10),
             bg="#27ae60",
             fg="white",

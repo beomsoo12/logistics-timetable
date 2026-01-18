@@ -2788,9 +2788,6 @@ def start_main_app(root, user):
     root.attributes('-topmost', True)
     root.after(100, lambda: root.attributes('-topmost', False))
 
-    # 프로그램 시작 시 자동으로 업데이트 확인 (백그라운드에서 실행)
-    root.after(1000, lambda: check_for_updates_on_startup(root))
-
 
 def get_icon_path():
     """아이콘 파일 경로 반환"""
@@ -2805,6 +2802,7 @@ def get_icon_path():
 def main():
     """메인 함수"""
     root = tk.Tk()
+    root.withdraw()  # 초기 창 숨김
 
     # 아이콘 설정
     icon_path = get_icon_path()
@@ -2813,6 +2811,12 @@ def main():
             root.iconbitmap(icon_path)
         except:
             pass
+
+    # 로그인 전 업데이트 확인
+    try:
+        check_for_updates_on_startup(root)
+    except:
+        pass
 
     # 로그인 창 표시
     login = LoginWindow(root, lambda user: start_main_app(root, user))

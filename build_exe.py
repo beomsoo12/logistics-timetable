@@ -43,6 +43,7 @@ def build_executable():
         '--name=LogisticsTimetable',
         '--onefile',  # 단일 파일로 생성
         '--windowed',  # GUI 앱 (콘솔 숨김)
+        '--noupx',  # UPX 압축 비활성화 (DLL 오류 방지)
         icon_option,  # 아이콘
         '--add-data=version.py;.',  # 버전 파일 포함
         '--hidden-import=pyodbc',
@@ -50,7 +51,10 @@ def build_executable():
         '--hidden-import=babel.numbers',
         '--hidden-import=urllib.request',
         '--hidden-import=urllib.error',
+        '--hidden-import=cryptography',
+        '--hidden-import=cryptography.fernet',
         '--collect-all=tkcalendar',
+        '--collect-all=cryptography',
         'main.py'
     ]
 
@@ -71,7 +75,7 @@ def create_distribution_package():
     print("\n배포 패키지를 생성합니다...")
 
     # 배포 폴더 이름
-    dist_name = f"LogisticsTimetable_v1.0.4_{datetime.now().strftime('%Y%m%d')}"
+    dist_name = f"LogisticsTimetable_v1.0.5_{datetime.now().strftime('%Y%m%d')}"
     dist_folder = os.path.join('dist', dist_name)
 
     # 배포 폴더 생성

@@ -3,10 +3,17 @@
 """
 
 # 현재 버전 (MAJOR.MINOR.PATCH)
-VERSION = "1.0.4"
+VERSION = "1.0.5"
 
 # 버전 히스토리
 VERSION_HISTORY = {
+    "1.0.5": {
+        "date": "2026-01-18",
+        "changes": [
+            "로그인 전 업데이트 확인으로 변경",
+            "Python DLL 로드 오류 수정"
+        ]
+    },
     "1.0.4": {
         "date": "2026-01-18",
         "changes": [

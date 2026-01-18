@@ -1,0 +1,44 @@
+# 데이터베이스 설정 (민감 정보)
+db_config.py
+
+# Python 캐시
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# 빌드 결과물
+dist/
+build/
+*.spec
+*.exe
+
+# 데이터 파일
+data/*.xlsx
+logs/
+*.log
+
+# 임시 파일
+*.backup
+nul
+main
+data.gitkeep
+
+# IDE 설정
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Claude 설정
+.claude/
+
+# 테스트/개발용 스크립트 (필요시 주석 해제)
+# check_*.py
+# test_*.py
+# update_*.py
+# revert_*.py
+# add_*.py
+# setup_*.py
+# *_backup.py

@@ -3,10 +3,16 @@
 """
 
 # 현재 버전 (MAJOR.MINOR.PATCH)
-VERSION = "1.2.1"
+VERSION = "1.2.2"
 
 # 버전 히스토리
 VERSION_HISTORY = {
+    "1.2.2": {
+        "date": "2026-01-18",
+        "changes": [
+            "로그인 버튼 크기를 폼에 맞게 조정"
+        ]
+    },
     "1.2.1": {
         "date": "2026-01-18",
         "changes": [

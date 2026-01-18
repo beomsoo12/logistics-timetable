@@ -461,19 +461,17 @@ class LoginWindow:
         self.username_entry.bind("<Return>", lambda e: self.password_entry.focus())
         self.password_entry.bind("<Return>", lambda e: self.do_login())
 
-        # 로그인 버튼 (둥근 모서리)
+        # 로그인 버튼 (둥근 모서리) - 폼 너비에 맞춤
         login_btn = RoundedButton(
             card_frame,
             text="로그인",
             font=("맑은 고딕", 11, "bold"),
             bg=primary_color,
             fg="white",
-            width=280,
-            height=35,
             radius=6,
             command=self.do_login
         )
-        login_btn.pack(pady=(10, 0))
+        login_btn.pack(pady=(10, 0), fill=tk.X)
 
         # 안내 메시지
         info_frame = tk.Frame(main_frame, bg=bg_color)

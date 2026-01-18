@@ -225,10 +225,10 @@ class Database:
     # === 기본 업무 템플릿 관련 메서드 ===
 
     def get_default_tasks(self):
-        """기본 업무 템플릿 전체 조회 (업체명, 종료시간, 표시순서 포함)"""
+        """기본 업무 템플릿 전체 조회 (업체명, 종료시간, 표시순서, 색상 포함)"""
         try:
             query = """
-            SELECT time_slot, task_name, description, is_active, company, end_time, display_order
+            SELECT time_slot, task_name, description, is_active, company, end_time, display_order, color
             FROM DefaultTasks
             WHERE is_active = 1
             ORDER BY display_order, time_slot
@@ -246,15 +246,16 @@ class Database:
                     'description': row.description if row.description else '',
                     'company': row.company if row.company else '',
                     'end_time': row.end_time if row.end_time else '',
-                    'display_order': display_order
+                    'display_order': display_order,
+                    'color': row.color if row.color else ''
                 }
             return tasks
         except Exception as e:
             print(f"기본 업무 조회 오류: {e}")
             return {}
 
-    def insert_or_update_default_task(self, time_slot, task_name, description, company='', end_time='', display_order=None):
-        """기본 업무 템플릿 추가 또는 수정 (업체명, 종료시간, 표시순서 포함)"""
+    def insert_or_update_default_task(self, time_slot, task_name, description, company='', end_time='', display_order=None, color=''):
+        """기본 업무 템플릿 추가 또는 수정 (업체명, 종료시간, 표시순서, 색상 포함)"""
         try:
             # display_order가 지정되지 않은 경우 현재 최대값 + 1
             if display_order is None:
@@ -268,15 +269,15 @@ class Database:
             USING (SELECT ? AS display_order) AS source
             ON (target.display_order = source.display_order)
             WHEN MATCHED THEN
-                UPDATE SET time_slot = ?, task_name = ?, description = ?, company = ?, end_time = ?, is_active = 1, updated_at = GETDATE()
+                UPDATE SET time_slot = ?, task_name = ?, description = ?, company = ?, end_time = ?, color = ?, is_active = 1, updated_at = GETDATE()
             WHEN NOT MATCHED THEN
-                INSERT (display_order, time_slot, task_name, description, company, end_time, is_active)
-                VALUES (?, ?, ?, ?, ?, ?, 1);
+                INSERT (display_order, time_slot, task_name, description, company, end_time, color, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 1);
             """
             self.cursor.execute(query, (
                 display_order,
-                time_slot, task_name, description, company, end_time,
-                display_order, time_slot, task_name, description, company, end_time
+                time_slot, task_name, description, company, end_time, color,
+                display_order, time_slot, task_name, description, company, end_time, color
             ))
             self.connection.commit()
             return True

@@ -136,11 +136,11 @@ class TimeTableManager:
         """기본 업무 템플릿 조회"""
         return self.db.get_default_tasks()
 
-    def add_default_task(self, time_slot: str, task_name: str, description: str = "", company: str = "", end_time: str = "", display_order: int = None) -> bool:
-        """기본 업무 템플릿 추가 (업체명, 종료시간, 표시순서 포함)"""
+    def add_default_task(self, time_slot: str, task_name: str, description: str = "", company: str = "", end_time: str = "", display_order: int = None, color: str = "") -> bool:
+        """기본 업무 템플릿 추가 (업체명, 종료시간, 표시순서, 색상 포함)"""
         if time_slot not in self.time_slots:
             return False
-        return self.db.insert_or_update_default_task(time_slot, task_name, description, company, end_time, display_order)
+        return self.db.insert_or_update_default_task(time_slot, task_name, description, company, end_time, display_order, color)
 
     def remove_default_task(self, display_order: int) -> bool:
         """기본 업무 템플릿 삭제 (표시순서 기준)"""

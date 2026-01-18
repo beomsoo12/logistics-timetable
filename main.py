@@ -766,21 +766,31 @@ class TimeTableGUI:
         # 기본 업무를 (업체명, 법인명) 조합으로 그룹화하고 최소 display_order 추출
         tasks_by_company_corp = {}  # key: (업체명, 법인명), value: {time_slot: task_info}
         company_corp_display_order = {}  # key: (업체명, 법인명), value: 최소 display_order
+        company_corp_colors = {}  # key: (업체명, 법인명), value: 색상코드
 
         for display_order, task_info in default_tasks.items():
             company = task_info.get("company", "")
             corp_name = task_info.get("task", "")  # task_name이 법인명
             time_slot = task_info.get("time_slot", "")
+            color = task_info.get("color", "")  # DB에서 색상 가져오기
 
             if company and time_slot:
                 key = (company, corp_name)
                 if key not in tasks_by_company_corp:
                     tasks_by_company_corp[key] = {}
                     company_corp_display_order[key] = display_order
+                    # 첫 번째 색상 설정 (없으면 COMPANY_COLORS 기본값 사용)
+                    if color:
+                        company_corp_colors[key] = color
+                    else:
+                        company_corp_colors[key] = self.COMPANY_COLORS.get(company, "#d5f4e6")
                 else:
                     # 해당 조합의 최소 display_order 유지
                     if display_order < company_corp_display_order[key]:
                         company_corp_display_order[key] = display_order
+                    # 색상이 있으면 업데이트 (더 작은 display_order의 색상 우선)
+                    if color and display_order <= company_corp_display_order[key]:
+                        company_corp_colors[key] = color
                 tasks_by_company_corp[key][time_slot] = task_info
 
         # display_order 순서대로 (업체명, 법인명) 정렬
@@ -862,7 +872,8 @@ class TimeTableGUI:
         for company_corp in all_company_corps:
             company, corp_name = company_corp
             company_tasks = tasks_by_company_corp.get(company_corp, {})
-            bg_color = self.COMPANY_COLORS.get(company, "#d5f4e6")
+            # DB에 저장된 색상 사용 (없으면 COMPANY_COLORS 기본값)
+            bg_color = company_corp_colors.get(company_corp, self.COMPANY_COLORS.get(company, "#d5f4e6"))
 
             # 기본업무 행
             tk.Label(
@@ -1647,7 +1658,7 @@ class TimeTableGUI:
 
         default_tree = ttk.Treeview(
             left_frame,
-            columns=("표시순서", "시작시간", "종료시간", "업체명", "법인명", "상세 설명", "특수상황"),
+            columns=("표시순서", "시작시간", "종료시간", "업체명", "법인명", "상세 설명", "색상", "특수상황"),
             show="headings",
             yscrollcommand=tree_scroll.set
         )
@@ -1659,15 +1670,17 @@ class TimeTableGUI:
         default_tree.heading("업체명", text="업체명")
         default_tree.heading("법인명", text="법인명")
         default_tree.heading("상세 설명", text="상세 설명")
+        default_tree.heading("색상", text="색상")
         default_tree.heading("특수상황", text="특수상황")
 
         default_tree.column("표시순서", width=50, anchor="center")
-        default_tree.column("시작시간", width=70, anchor="center")
-        default_tree.column("종료시간", width=70, anchor="center")
-        default_tree.column("업체명", width=80, anchor="center")
-        default_tree.column("법인명", width=100, anchor="w")
-        default_tree.column("상세 설명", width=180, anchor="w")
-        default_tree.column("특수상황", width=120, anchor="w")
+        default_tree.column("시작시간", width=60, anchor="center")
+        default_tree.column("종료시간", width=60, anchor="center")
+        default_tree.column("업체명", width=70, anchor="center")
+        default_tree.column("법인명", width=80, anchor="w")
+        default_tree.column("상세 설명", width=150, anchor="w")
+        default_tree.column("색상", width=70, anchor="center")
+        default_tree.column("특수상황", width=100, anchor="w")
 
         default_tree.pack(fill=tk.BOTH, expand=True)
 
@@ -1763,6 +1776,62 @@ class TimeTableGUI:
         )
         special_text.pack(fill=tk.BOTH, expand=True, pady=(5, 10))
 
+        # 색상 선택
+        color_frame = tk.Frame(right_frame)
+        color_frame.pack(fill=tk.X, pady=(0, 10))
+
+        tk.Label(color_frame, text="표시 색상:", font=("굴림체", 10)).pack(side=tk.LEFT)
+
+        # 색상 미리보기 라벨
+        color_preview = tk.Label(color_frame, text="    ", bg="#d5f4e6", relief="solid", width=4)
+        color_preview.pack(side=tk.LEFT, padx=(10, 5))
+
+        # 선택된 색상 저장
+        selected_color = {"value": ""}
+
+        def choose_color():
+            """색상 선택 다이얼로그"""
+            from tkinter import colorchooser
+            current_color = selected_color["value"] if selected_color["value"] else "#d5f4e6"
+            color = colorchooser.askcolor(
+                title="표시 색상 선택",
+                initialcolor=current_color
+            )
+            if color[1]:  # 색상이 선택된 경우
+                selected_color["value"] = color[1]
+                color_preview.config(bg=color[1])
+                color_entry.delete(0, tk.END)
+                color_entry.insert(0, color[1])
+
+        color_btn = tk.Button(color_frame, text="색상 선택", command=choose_color, font=("굴림체", 9))
+        color_btn.pack(side=tk.LEFT, padx=5)
+
+        # 색상 코드 직접 입력
+        color_entry = tk.Entry(color_frame, font=("굴림체", 9), width=10)
+        color_entry.pack(side=tk.LEFT, padx=5)
+
+        def on_color_entry_change(event=None):
+            """색상 코드 직접 입력 시 미리보기 업데이트"""
+            color_code = color_entry.get().strip()
+            if color_code and (color_code.startswith('#') and len(color_code) == 7):
+                try:
+                    color_preview.config(bg=color_code)
+                    selected_color["value"] = color_code
+                except:
+                    pass
+
+        color_entry.bind("<KeyRelease>", on_color_entry_change)
+
+        # 색상 초기화 버튼
+        def reset_color():
+            """색상 초기화"""
+            selected_color["value"] = ""
+            color_preview.config(bg="#d5f4e6")
+            color_entry.delete(0, tk.END)
+
+        reset_color_btn = tk.Button(color_frame, text="초기화", command=reset_color, font=("굴림체", 9))
+        reset_color_btn.pack(side=tk.LEFT, padx=5)
+
         # 버튼들
         btn_frame = tk.Frame(right_frame)
         btn_frame.pack(fill=tk.X)
@@ -1790,6 +1859,9 @@ class TimeTableGUI:
                 if time_slot in actual_tasks:
                     special_note = actual_tasks[time_slot].get("special_note", "")
 
+                # 색상 값 (없으면 빈 문자열)
+                color_value = task_info.get("color", "")
+
                 default_tree.insert(
                     "",
                     tk.END,
@@ -1800,12 +1872,13 @@ class TimeTableGUI:
                         task_info.get("company", ""),
                         task_info.get("task", ""),
                         task_info.get("description", ""),
+                        color_value,
                         special_note
                     )
                 )
 
         def on_tree_select(event):
-            """리스트 선택 시 (표시순서, 업체명, 종료시간 포함)"""
+            """리스트 선택 시 (표시순서, 업체명, 종료시간, 색상 포함)"""
             selection = default_tree.selection()
             if not selection:
                 return
@@ -1825,8 +1898,21 @@ class TimeTableGUI:
             task_combo.set(values[4] if len(values) > 4 else "")
             desc_text.delete("1.0", tk.END)
             desc_text.insert("1.0", values[5] if len(values) > 5 else "")
+
+            # 색상 로드 (인덱스 6)
+            color_value = values[6] if len(values) > 6 else ""
+            color_entry.delete(0, tk.END)
+            if color_value:
+                color_entry.insert(0, color_value)
+                color_preview.config(bg=color_value)
+                selected_color["value"] = color_value
+            else:
+                color_preview.config(bg="#d5f4e6")
+                selected_color["value"] = ""
+
+            # 특수상황 (인덱스 7)
             special_text.delete("1.0", tk.END)
-            special_text.insert("1.0", values[6] if len(values) > 6 else "")
+            special_text.insert("1.0", values[7] if len(values) > 7 else "")
 
         default_tree.bind("<<TreeviewSelect>>", on_tree_select)
 
@@ -1839,6 +1925,7 @@ class TimeTableGUI:
             description = desc_text.get("1.0", tk.END).strip()
             special_note = special_text.get("1.0", tk.END).strip()
             display_order_str = display_order_entry.get().strip()
+            color = color_entry.get().strip()  # 색상 값
 
             if not task_name:
                 messagebox.showwarning("입력 오류", "법인명을 입력해주세요.")
@@ -1851,8 +1938,8 @@ class TimeTableGUI:
                 messagebox.showwarning("입력 오류", "표시순서는 숫자여야 합니다.")
                 return
 
-            # 기본 업무 템플릿 저장
-            success = self.manager.add_default_task(time_slot, task_name, description, company, end_time, display_order)
+            # 기본 업무 템플릿 저장 (색상 포함)
+            success = self.manager.add_default_task(time_slot, task_name, description, company, end_time, display_order, color)
 
             # 특수상황이 있으면 실제 업무 테이블에 저장
             if special_note:
@@ -1869,6 +1956,10 @@ class TimeTableGUI:
                 special_text.delete("1.0", tk.END)
                 display_order_entry.delete(0, tk.END)
                 display_order_entry.insert(0, "1")
+                # 색상 초기화
+                color_entry.delete(0, tk.END)
+                color_preview.config(bg="#d5f4e6")
+                selected_color["value"] = ""
                 # 메인 화면 새로고침
                 self.refresh_timetable()
                 messagebox.showinfo("성공", "기본 업무 및 특수상황이 저장되었습니다.")
@@ -1908,6 +1999,10 @@ class TimeTableGUI:
             special_text.delete("1.0", tk.END)
             display_order_entry.delete(0, tk.END)
             display_order_entry.insert(0, "1")
+            # 색상 초기화
+            color_entry.delete(0, tk.END)
+            color_preview.config(bg="#d5f4e6")
+            selected_color["value"] = ""
             selected_display_order["value"] = None
 
         def insert_default():
@@ -1919,6 +2014,7 @@ class TimeTableGUI:
             description = desc_text.get("1.0", tk.END).strip()
             special_note = special_text.get("1.0", tk.END).strip()
             display_order_str = display_order_entry.get().strip()
+            color = color_entry.get().strip()  # 색상 값
 
             if not task_name:
                 messagebox.showwarning("입력 오류", "법인명을 입력해주세요.")
@@ -1951,11 +2047,12 @@ class TimeTableGUI:
                     info.get("description", ""),
                     info.get("company", ""),
                     info.get("end_time", ""),
-                    old_order + 1
+                    old_order + 1,
+                    info.get("color", "")  # 기존 색상 유지
                 )
 
-            # 2. 새 항목을 지정된 순서에 삽입
-            success = self.manager.add_default_task(time_slot, task_name, description, company, end_time, new_display_order)
+            # 2. 새 항목을 지정된 순서에 삽입 (색상 포함)
+            success = self.manager.add_default_task(time_slot, task_name, description, company, end_time, new_display_order, color)
 
             # 3. 특수상황이 있으면 실제 업무 테이블에 저장
             if special_note:

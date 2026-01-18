@@ -2083,12 +2083,16 @@ class TimeTableGUI:
                 messagebox.showerror("입력 오류", "시작일이 종료일보다 늦습니다.")
                 return
 
-            # 결과 텍스트 초기화
+            # 결과 텍스트 초기화 (NORMAL 상태로 변경 후 삭제)
+            result_text.config(state=tk.NORMAL)
             result_text.delete(1.0, tk.END)
+
+            # 총 일수 계산 (시작일과 종료일 모두 포함)
+            total_days = (end_date - start_date).days + 1
 
             # 날짜 범위 표시
             result_text.insert(tk.END, f"{'='*60}\n", "header")
-            result_text.insert(tk.END, f"기간: {start_date.strftime('%Y-%m-%d')} ~ {end_date.strftime('%Y-%m-%d')}\n", "header")
+            result_text.insert(tk.END, f"기간: {start_date.strftime('%Y-%m-%d')} ~ {end_date.strftime('%Y-%m-%d')} (총 {total_days}일)\n", "header")
             result_text.insert(tk.END, f"{'='*60}\n\n", "header")
 
             # 법인별 추가 시간 집계를 위한 딕셔너리
@@ -2172,7 +2176,7 @@ class TimeTableGUI:
             if not corp_totals:
                 result_text.insert(tk.END, "해당 기간에 추가 시간 데이터가 없습니다.\n", "normal")
             else:
-                result_text.insert(tk.END, f"총 {date_count}일 기간 동안의 법인별 추가 시간 집계:\n\n", "subheader")
+                result_text.insert(tk.END, f"총 {total_days}일 기간 동안의 법인별 추가 시간 집계:\n\n", "subheader")
 
                 # 법인명 순으로 정렬하여 출력
                 for corp_name in sorted(corp_totals.keys()):

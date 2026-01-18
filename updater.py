@@ -302,7 +302,7 @@ class Updater:
                 current_dir = os.path.dirname(os.path.abspath(__file__))
                 is_exe = False
 
-            # 임시 디렉토리에 다운로드
+            # 임시 디렉토리에 ZIP 파일 다운로드
             temp_dir = tempfile.mkdtemp()
             zip_path = os.path.join(temp_dir, "update.zip")
 
@@ -316,52 +316,23 @@ class Updater:
 
             request.urlretrieve(self.download_url, zip_path, download_progress)
 
-            # 압축 해제
-            status_label.config(text="압축을 해제하고 있습니다...")
-            progress_dialog.update()
-
-            extract_dir = os.path.join(temp_dir, "extracted")
-            os.makedirs(extract_dir, exist_ok=True)
-
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall(extract_dir)
-
-            # 설치
-            status_label.config(text="파일을 설치하고 있습니다...")
+            status_label.config(text="업데이트 준비 중...")
             progress_dialog.update()
 
             if is_exe:
-                # EXE 파일 업데이트: 폴더 전체 교체 (onedir 모드)
-                new_exe = None
-                new_icon = None
-                new_internal = None
-                update_source_dir = None
+                # EXE 파일 업데이트: 기존 폴더 삭제 후 ZIP 압축 해제
+                # 배치 스크립트를 현재 프로그램 폴더에 생성
+                batch_path = os.path.join(current_dir, "update_temp.bat")
+                exe_name = os.path.basename(current_exe)
 
-                # 압축 해제된 폴더에서 EXE, _internal 폴더, ICO 파일 찾기
-                for root, dirs, files in os.walk(extract_dir):
-                    for file in files:
-                        if file.endswith('.exe'):
-                            new_exe = os.path.join(root, file)
-                            update_source_dir = root
-                        elif file.endswith('.ico'):
-                            new_icon = os.path.join(root, file)
-                    # _internal 폴더 찾기
-                    if '_internal' in dirs:
-                        new_internal = os.path.join(root, '_internal')
-
-                if new_exe and update_source_dir:
-                    # 배치 스크립트를 현재 프로그램 폴더에 생성 (임시 폴더가 아님)
-                    batch_path = os.path.join(current_dir, "update_temp.bat")
-                    current_internal = os.path.join(current_dir, "_internal")
-
-                    # 폴더 전체 교체 방식으로 업데이트
-                    batch_content = f'''@echo off
+                # 기존 폴더 삭제 후 ZIP 압축 해제 방식
+                batch_content = f'''@echo off
 chcp 65001 >nul
 echo ============================================
 echo 업데이트를 설치하고 있습니다...
 echo ============================================
 echo 현재 폴더: {current_dir}
-echo 업데이트 소스: {update_source_dir}
+echo ZIP 파일: {zip_path}
 cd /d "{current_dir}"
 timeout /t 3 /nobreak >nul
 
@@ -374,24 +345,43 @@ if exist "{current_exe}" (
 )
 
 echo.
-echo [1/3] 기존 _internal 폴더 삭제 중...
-if exist "{current_internal}" (
-    rmdir /s /q "{current_internal}"
-    timeout /t 1 /nobreak >nul
+echo [1/4] 기존 파일 삭제 중...
+echo 배치 파일과 ZIP 파일을 제외한 모든 파일 삭제...
+for /f "delims=" %%i in ('dir /b /a-d "{current_dir}" 2^>nul') do (
+    if /i not "%%i"=="update_temp.bat" (
+        del /f /q "{current_dir}\\%%i" 2>nul
+    )
 )
+for /d %%i in ("{current_dir}\\*") do (
+    rmdir /s /q "%%i" 2>nul
+)
+timeout /t 1 /nobreak >nul
 
-echo [2/3] 새 파일 복사 중...
-echo 소스 폴더의 모든 파일을 복사합니다...
-xcopy /s /e /y /q "{update_source_dir}\\*.*" "{current_dir}\\"
+echo [2/4] ZIP 파일 압축 해제 중...
+powershell -Command "Expand-Archive -Path '{zip_path}' -DestinationPath '{current_dir}' -Force"
 if errorlevel 1 (
-    echo 파일 복사 실패!
+    echo 압축 해제 실패!
     pause
     goto cleanup
 )
 
-echo [3/3] 복사 완료 확인 중...
+echo [3/4] 파일 이동 중...
+REM ZIP 내부 폴더에서 파일들을 현재 폴더로 이동
+for /d %%d in ("{current_dir}\\*") do (
+    if exist "%%d\\{exe_name}" (
+        echo 소스 폴더: %%d
+        xcopy /s /e /y /q "%%d\\*.*" "{current_dir}\\"
+        rmdir /s /q "%%d" 2>nul
+        goto check_exe
+    )
+)
+
+:check_exe
+echo [4/4] 설치 확인 중...
 if not exist "{current_exe}" (
     echo EXE 파일이 없습니다!
+    echo 현재 폴더 내용:
+    dir "{current_dir}"
     pause
     goto cleanup
 )
@@ -411,34 +401,37 @@ rmdir /s /q "{temp_dir}" 2>nul
 del "%~f0"
 '''
 
-                    with open(batch_path, 'w', encoding='utf-8') as f:
-                        f.write(batch_content)
+                with open(batch_path, 'w', encoding='utf-8') as f:
+                    f.write(batch_content)
 
-                    progress_dialog.destroy()
+                progress_dialog.destroy()
 
-                    # 안내 메시지
-                    messagebox.showinfo(
-                        "업데이트",
-                        f"v{self.latest_version} 업데이트를 설치합니다.\n\n"
-                        "프로그램이 자동으로 재시작됩니다."
-                    )
+                # 안내 메시지
+                messagebox.showinfo(
+                    "업데이트",
+                    f"v{self.latest_version} 업데이트를 설치합니다.\n\n"
+                    "프로그램이 자동으로 재시작됩니다."
+                )
 
-                    # 배치 스크립트 실행 후 프로그램 종료
-                    subprocess.Popen(
-                        ['cmd', '/c', batch_path],
-                        creationflags=subprocess.CREATE_NO_WINDOW
-                    )
+                # 배치 스크립트 실행 후 프로그램 종료
+                subprocess.Popen(
+                    ['cmd', '/c', batch_path],
+                    creationflags=subprocess.CREATE_NO_WINDOW
+                )
 
-                    # 프로그램 종료
-                    if parent:
-                        parent.destroy()
-                    sys.exit(0)
-
-                else:
-                    raise Exception("업데이트 파일에서 실행 파일을 찾을 수 없습니다.")
+                # 프로그램 종료
+                if parent:
+                    parent.destroy()
+                sys.exit(0)
 
             else:
-                # Python 스크립트 업데이트: .py 파일 복사
+                # Python 스크립트 업데이트: ZIP 압축 해제 후 .py 파일 복사
+                extract_dir = os.path.join(temp_dir, "extracted")
+                os.makedirs(extract_dir, exist_ok=True)
+
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    zip_ref.extractall(extract_dir)
+
                 for root, dirs, files in os.walk(extract_dir):
                     for file in files:
                         # db_config 파일은 제외 (사용자 설정 유지)

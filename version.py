@@ -3,10 +3,17 @@
 """
 
 # 현재 버전 (MAJOR.MINOR.PATCH)
-VERSION = "1.1.1"
+VERSION = "1.1.2"
 
 # 버전 히스토리
 VERSION_HISTORY = {
+    "1.1.2": {
+        "date": "2026-01-18",
+        "changes": [
+            "업데이트 시 기존 폴더 삭제 후 ZIP 직접 압축 해제 방식으로 변경",
+            "PowerShell Expand-Archive 사용"
+        ]
+    },
     "1.1.1": {
         "date": "2026-01-18",
         "changes": [

@@ -3,10 +3,16 @@
 """
 
 # 현재 버전 (MAJOR.MINOR.PATCH)
-VERSION = "1.0.8"
+VERSION = "1.0.9"
 
 # 버전 히스토리
 VERSION_HISTORY = {
+    "1.0.9": {
+        "date": "2026-01-18",
+        "changes": [
+            "기본 업무 관리 창이 뒤로 숨는 문제 수정"
+        ]
+    },
     "1.0.8": {
         "date": "2026-01-18",
         "changes": [

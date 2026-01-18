@@ -1634,6 +1634,11 @@ class TimeTableGUI:
         manage_window.title("기본 업무 관리")
         manage_window.geometry("1000x600")
 
+        # 창이 뒤로 숨지 않도록 설정
+        manage_window.transient(self.root)  # 부모 창에 종속
+        manage_window.grab_set()  # 모달 창으로 설정
+        manage_window.focus_force()  # 포커스 강제 설정
+
         # 타이틀
         title_label = tk.Label(
             manage_window,
@@ -1795,13 +1800,17 @@ class TimeTableGUI:
             current_color = selected_color["value"] if selected_color["value"] else "#d5f4e6"
             color = colorchooser.askcolor(
                 title="표시 색상 선택",
-                initialcolor=current_color
+                initialcolor=current_color,
+                parent=manage_window  # 부모 창 지정
             )
             if color[1]:  # 색상이 선택된 경우
                 selected_color["value"] = color[1]
                 color_preview.config(bg=color[1])
                 color_entry.delete(0, tk.END)
                 color_entry.insert(0, color[1])
+            # 색상 선택 후 창을 다시 앞으로
+            manage_window.lift()
+            manage_window.focus_force()
 
         color_btn = tk.Button(color_frame, text="색상 선택", command=choose_color, font=("굴림체", 9))
         color_btn.pack(side=tk.LEFT, padx=5)

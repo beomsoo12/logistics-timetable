@@ -306,8 +306,16 @@ powershell -Command "Expand-Archive -Path '{zip_path_bat}' -DestinationPath '{ex
 
 echo.
 echo Copying files...
-for /d %%i in ("{extract_dir_bat}\\*") do (
-    xcopy "%%i\\*.*" "{install_dir_bat}\\" /E /H /Y /Q >nul 2>&1
+REM Check if EXE exists directly in extract folder
+if exist "{extract_dir_bat}\\LogisticsTimetable.exe" (
+    xcopy "{extract_dir_bat}\\*.*" "{install_dir_bat}\\" /E /H /Y /Q >nul 2>&1
+) else (
+    REM EXE is in a subfolder
+    for /d %%i in ("{extract_dir_bat}\\*") do (
+        if exist "%%i\\LogisticsTimetable.exe" (
+            xcopy "%%i\\*.*" "{install_dir_bat}\\" /E /H /Y /Q >nul 2>&1
+        )
+    )
 )
 
 echo.

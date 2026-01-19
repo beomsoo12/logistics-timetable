@@ -3,10 +3,17 @@
 """
 
 # 현재 버전 (MAJOR.MINOR.PATCH)
-VERSION = "1.3.8"
+VERSION = "1.3.9"
 
 # 버전 히스토리
 VERSION_HISTORY = {
+    "1.3.9": {
+        "date": "2026-01-19",
+        "changes": [
+            "업데이트 배치 파일 ZIP 구조 호환성 개선",
+            "ZIP 내 폴더 유무에 관계없이 정상 업데이트"
+        ]
+    },
     "1.3.8": {
         "date": "2026-01-19",
         "changes": [

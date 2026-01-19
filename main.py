@@ -1049,6 +1049,9 @@ class TimeTableGUI:
         self.canvas_frame.grid_columnconfigure(1, minsize=corp_name_width)  # 법인명 열 너비 (반응형)
         self.canvas_frame.grid_columnconfigure(len(time_slots) + 2, minsize=extra_time_width)  # 추가시간 열 너비 (반응형)
 
+        # 헤더 행(row=0) 높이 1.5배로 설정
+        self.canvas_frame.grid_rowconfigure(0, minsize=30)  # 헤더 행 높이 (일반 행의 1.5배)
+
         # 행 높이 설정 (업체 수에 따라 자동 조정) - 60% 축소 (원본 대비)
         # 각 업체당: 기본업무 행(1) + 특수상황 행(1) + 구분선(0.3) = 약 2.3행
         # 추가: 헤더 행(1) + 총합 행(1) = 2행

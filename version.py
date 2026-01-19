@@ -3,10 +3,16 @@
 """
 
 # 현재 버전 (MAJOR.MINOR.PATCH)
-VERSION = "1.3.9"
+VERSION = "1.4.0"
 
 # 버전 히스토리
 VERSION_HISTORY = {
+    "1.4.0": {
+        "date": "2026-01-19",
+        "changes": [
+            "그리드 헤더 행 높이 1.5배 확대"
+        ]
+    },
     "1.3.9": {
         "date": "2026-01-19",
         "changes": [

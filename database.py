@@ -750,3 +750,149 @@ class Database:
             print(f"로그 삭제 오류: {e}")
             self.connection.rollback()
             return 0
+
+    # === 특수 시간 변동 사유 관련 메서드 ===
+
+    def create_special_time_reasons_table(self):
+        """특수 시간 변동 사유 테이블 생성"""
+        try:
+            create_table_query = """
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='SpecialTimeReasons' AND xtype='U')
+            CREATE TABLE SpecialTimeReasons (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                work_date DATE NOT NULL,
+                company NVARCHAR(100) NOT NULL,
+                corp_name NVARCHAR(100) NOT NULL,
+                added_time INT DEFAULT 0,
+                reason NVARCHAR(500),
+                user_id INT,
+                username NVARCHAR(50),
+                created_at DATETIME DEFAULT GETDATE(),
+                updated_at DATETIME DEFAULT GETDATE()
+            )
+            """
+            self.cursor.execute(create_table_query)
+            self.connection.commit()
+            return True
+        except Exception as e:
+            print(f"특수 시간 변동 사유 테이블 생성 오류: {e}")
+            return False
+
+    def save_special_time_reason(self, work_date, company, corp_name, added_time, reason, user_id=None, username=None):
+        """특수 시간 변동 사유 저장 또는 업데이트"""
+        try:
+            query = """
+            MERGE SpecialTimeReasons AS target
+            USING (SELECT ? AS work_date, ? AS company, ? AS corp_name) AS source
+            ON (target.work_date = source.work_date AND target.company = source.company
+                AND target.corp_name = source.corp_name)
+            WHEN MATCHED THEN
+                UPDATE SET added_time = ?, reason = ?, user_id = ?, username = ?, updated_at = GETDATE()
+            WHEN NOT MATCHED THEN
+                INSERT (work_date, company, corp_name, added_time, reason, user_id, username)
+                VALUES (?, ?, ?, ?, ?, ?, ?);
+            """
+            self.cursor.execute(query, (
+                work_date, company, corp_name,
+                added_time, reason, user_id, username,
+                work_date, company, corp_name, added_time, reason, user_id, username
+            ))
+            self.connection.commit()
+            return True
+        except Exception as e:
+            print(f"특수 시간 변동 사유 저장 오류: {e}")
+            self.connection.rollback()
+            return False
+
+    def get_special_time_reason(self, work_date, company, corp_name):
+        """특정 업체+법인의 특수 시간 변동 사유 조회"""
+        try:
+            query = """
+            SELECT added_time, reason, username, updated_at
+            FROM SpecialTimeReasons
+            WHERE work_date = ? AND company = ? AND corp_name = ?
+            """
+            self.cursor.execute(query, (work_date, company, corp_name))
+            row = self.cursor.fetchone()
+
+            if row:
+                return {
+                    'added_time': row.added_time,
+                    'reason': row.reason if row.reason else '',
+                    'username': row.username if row.username else '',
+                    'updated_at': row.updated_at
+                }
+            return None
+        except Exception as e:
+            print(f"특수 시간 변동 사유 조회 오류: {e}")
+            return None
+
+    def get_all_special_time_reasons(self, work_date):
+        """특정 날짜의 모든 특수 시간 변동 사유 조회"""
+        try:
+            query = """
+            SELECT company, corp_name, added_time, reason, username, updated_at
+            FROM SpecialTimeReasons
+            WHERE work_date = ? AND added_time != 0
+            ORDER BY company, corp_name
+            """
+            self.cursor.execute(query, (work_date,))
+            rows = self.cursor.fetchall()
+
+            reasons = []
+            for row in rows:
+                reasons.append({
+                    'company': row.company,
+                    'corp_name': row.corp_name,
+                    'added_time': row.added_time,
+                    'reason': row.reason if row.reason else '',
+                    'username': row.username if row.username else '',
+                    'updated_at': row.updated_at
+                })
+            return reasons
+        except Exception as e:
+            print(f"특수 시간 변동 사유 전체 조회 오류: {e}")
+            return []
+
+    def get_special_time_reasons_by_period(self, start_date, end_date):
+        """기간별 특수 시간 변동 사유 조회"""
+        try:
+            query = """
+            SELECT work_date, company, corp_name, added_time, reason, username, updated_at
+            FROM SpecialTimeReasons
+            WHERE work_date BETWEEN ? AND ? AND added_time != 0
+            ORDER BY work_date, company, corp_name
+            """
+            self.cursor.execute(query, (start_date, end_date))
+            rows = self.cursor.fetchall()
+
+            reasons = []
+            for row in rows:
+                reasons.append({
+                    'work_date': row.work_date,
+                    'company': row.company,
+                    'corp_name': row.corp_name,
+                    'added_time': row.added_time,
+                    'reason': row.reason if row.reason else '',
+                    'username': row.username if row.username else '',
+                    'updated_at': row.updated_at
+                })
+            return reasons
+        except Exception as e:
+            print(f"기간별 특수 시간 변동 사유 조회 오류: {e}")
+            return []
+
+    def delete_special_time_reason(self, work_date, company, corp_name):
+        """특수 시간 변동 사유 삭제"""
+        try:
+            query = """
+            DELETE FROM SpecialTimeReasons
+            WHERE work_date = ? AND company = ? AND corp_name = ?
+            """
+            self.cursor.execute(query, (work_date, company, corp_name))
+            self.connection.commit()
+            return True
+        except Exception as e:
+            print(f"특수 시간 변동 사유 삭제 오류: {e}")
+            self.connection.rollback()
+            return False

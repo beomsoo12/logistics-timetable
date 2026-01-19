@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext
+from tkinter import ttk, messagebox, scrolledtext, filedialog
 from timetable_manager import TimeTableManager
 from tkcalendar import DateEntry
 from datetime import date, datetime, timedelta
@@ -179,7 +179,7 @@ class LoginWindow:
 
         self.login_window = tk.Toplevel(self.root)
         self.login_window.title("로그인")
-        self.login_window.geometry("420x520")
+        self.login_window.geometry("420x560")
         self.login_window.resizable(False, False)
         self.login_window.configure(bg="#f8f9fa")
 
@@ -188,7 +188,7 @@ class LoginWindow:
         screen_height = self.login_window.winfo_screenheight()
         x = (screen_width - 420) // 2
         y = (screen_height - 520) // 2
-        self.login_window.geometry(f"420x520+{x}+{y}")
+        self.login_window.geometry(f"420x560+{x}+{y}")
 
         # 창을 맨 앞으로 가져오기
         self.login_window.lift()
@@ -380,7 +380,7 @@ class LoginWindow:
 
         id_label = tk.Label(
             id_frame,
-            text="사용자 ID (한글)",
+            text="사용자 ID",
             font=("맑은 고딕", 10, "bold"),
             bg=card_color,
             fg=text_dark,
@@ -391,22 +391,6 @@ class LoginWindow:
         id_entry_frame = tk.Frame(id_frame, bg=input_border, padx=1, pady=1)
         id_entry_frame.pack(fill=tk.X, pady=(5, 0))
 
-        # 한글만 입력 허용하는 검증 함수
-        def validate_korean_only(char):
-            """한글만 입력 허용 (영문, 숫자, 특수문자 차단)"""
-            if char == "":
-                return True
-            # 한글 유니코드 범위: 가-힣 (완성형), ㄱ-ㅎ, ㅏ-ㅣ (자모)
-            for c in char:
-                if not ('\uAC00' <= c <= '\uD7A3' or  # 완성형 한글
-                        '\u3131' <= c <= '\u3163' or  # 자음/모음
-                        c == ' '):  # 공백 허용
-                    return False
-            return True
-
-        # 검증 명령 등록
-        vcmd = (self.login_window.register(validate_korean_only), '%S')
-
         self.username_entry = tk.Entry(
             id_entry_frame,
             font=("맑은 고딕", 11),
@@ -414,9 +398,7 @@ class LoginWindow:
             fg=text_dark,
             insertbackground=text_dark,
             relief=tk.FLAT,
-            highlightthickness=0,
-            validate='key',
-            validatecommand=vcmd
+            highlightthickness=0
         )
         self.username_entry.pack(fill=tk.X, ipady=10, padx=10)
         self.username_entry.focus()
@@ -484,39 +466,25 @@ class LoginWindow:
         self.username_entry.bind("<Return>", lambda e: self.password_entry.focus())
         self.password_entry.bind("<Return>", lambda e: self.do_login())
 
+        # 로그인 버튼 프레임 (너비 맞춤용)
+        login_btn_frame = tk.Frame(card_frame, bg=card_color)
+        login_btn_frame.pack(pady=(10, 0), fill=tk.X)
+
         # 로그인 버튼 (둥근 모서리) - 폼 너비에 맞춤
+        # card_frame padx=35*2=70, content_frame padx=35*2=70, 총 140 빼고 계산
+        # 창 너비 350에서 padx 고려하면 약 210 정도
         login_btn = RoundedButton(
-            card_frame,
+            login_btn_frame,
             text="로그인",
-            font=("맑은 고딕", 11, "bold"),
+            font=("맑은 고딕", 12, "bold"),
             bg=primary_color,
             fg="white",
             radius=6,
+            width=280,  # 카드 너비에 맞춤
+            height=45,
             command=self.do_login
         )
-        login_btn.pack(pady=(10, 0), fill=tk.X)
-
-        # 안내 메시지
-        info_frame = tk.Frame(main_frame, bg=bg_color)
-        info_frame.pack(pady=(15, 0))
-
-        info_icon = tk.Label(
-            info_frame,
-            text="ℹ",
-            font=("Segoe UI", 10),
-            bg=bg_color,
-            fg=accent_color
-        )
-        info_icon.pack(side=tk.LEFT, padx=(0, 5))
-
-        info_label = tk.Label(
-            info_frame,
-            text="처음 사용시  ID: admin  /  PW: admin123",
-            font=("맑은 고딕", 9),
-            bg=bg_color,
-            fg=text_light
-        )
-        info_label.pack(side=tk.LEFT)
+        login_btn.pack(expand=True)
 
         # 하단 저작권
         copyright_label = tk.Label(
@@ -584,19 +552,44 @@ class TimeTableGUI:
         user_display = current_user['display_name'] if current_user else ''
         self.root.title(f"견우물류 업무 타임테이블 - {user_display}")
 
-        # 화면 크기 가져오기
+        # 화면 크기 가져오기 (작업 표시줄 제외한 실제 작업 영역)
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
 
-        # 창 크기 설정 (전체 화면에 가깝게)
-        window_width = screen_width  # 전체 너비
-        window_height = screen_height - 40  # 작업 표시줄 영역만 제외
+        # Windows API로 실제 작업 영역 크기 가져오기
+        try:
+            import ctypes
+            from ctypes import wintypes
 
-        # 창 위치 (맨 위, 맨 왼쪽)
-        x_position = 0
-        y_position = 0
+            # SystemParametersInfo로 작업 영역 가져오기
+            SPI_GETWORKAREA = 0x0030
+            rect = wintypes.RECT()
+            ctypes.windll.user32.SystemParametersInfoW(
+                SPI_GETWORKAREA, 0, ctypes.byref(rect), 0
+            )
+            work_width = rect.right - rect.left
+            work_height = rect.bottom - rect.top
+            work_x = rect.left
+            work_y = rect.top
+        except:
+            # API 호출 실패 시 기본값 사용
+            work_width = screen_width
+            work_height = screen_height - 70  # 작업표시줄 + 여유
+            work_x = 0
+            work_y = 0
+
+        # 창 크기 설정 (작업 영역에 맞춤)
+        window_width = work_width
+        window_height = work_height
+
+        # 창 위치 (작업 영역 시작점)
+        x_position = work_x
+        y_position = work_y
 
         self.root.geometry(f"{window_width}x{window_height}+{x_position}+{y_position}")
+
+        # 창 최대 크기 제한 (작업 영역을 벗어나지 않도록)
+        self.root.maxsize(work_width, work_height)
 
         # 창이 최대화되지 않은 상태에서 전체화면처럼 보이도록
         self.root.update_idletasks()
@@ -636,26 +629,106 @@ class TimeTableGUI:
 
     def setup_ui(self):
         """UI 구성"""
-        # 상단 타이틀
-        title_frame = tk.Frame(self.root, bg="#2c3e50", height=60)
-        title_frame.pack(fill=tk.X, side=tk.TOP)
+        # 상단 통합 헤더 영역 (타이틀 + 날짜 선택 + 사용자 정보)
+        header_frame = tk.Frame(self.root, bg="#2c3e50", height=60)
+        header_frame.pack(fill=tk.X, side=tk.TOP)
 
-        # 타이틀과 사용자 정보를 담을 프레임
-        title_inner = tk.Frame(title_frame, bg="#2c3e50")
-        title_inner.pack(fill=tk.X, pady=10)
-
+        # 왼쪽: 타이틀
         title_label = tk.Label(
-            title_inner,
+            header_frame,
             text=f"견우물류 업무 타임테이블 v{VERSION}",
-            font=("굴림체", 18, "bold"),
+            font=("굴림체", 14, "bold"),
             bg="#2c3e50",
             fg="white"
         )
-        title_label.pack(side=tk.LEFT, padx=20)
+        title_label.pack(side=tk.LEFT, padx=(15, 20), pady=10)
 
-        # 사용자 정보 및 로그아웃 버튼 (우측)
-        user_frame = tk.Frame(title_inner, bg="#2c3e50")
-        user_frame.pack(side=tk.RIGHT, padx=20)
+        # 중앙: 날짜 선택 영역
+        date_frame = tk.Frame(header_frame, bg="#2c3e50")
+        date_frame.pack(side=tk.LEFT, padx=5, pady=5)
+
+        tk.Label(
+            date_frame,
+            text="작업 날짜:",
+            font=("굴림체", 12, "bold"),
+            bg="#2c3e50",
+            fg="white"
+        ).pack(side=tk.LEFT, padx=(0, 5))
+
+        self.date_entry = DateEntry(
+            date_frame,
+            font=("굴림체", 11),
+            width=12,
+            background='darkblue',
+            foreground='white',
+            borderwidth=2,
+            date_pattern='yyyy-mm-dd',
+            locale='ko_KR'
+        )
+        self.date_entry.pack(side=tk.LEFT, padx=3)
+        self.date_entry.bind("<<DateEntrySelected>>", self.on_date_changed)
+
+        # 날짜 이동 버튼 (둥근 모서리)
+        btn_prev = RoundedButton(
+            date_frame,
+            text="◀ 이전",
+            font=("굴림체", 10),
+            bg="#3498db",
+            fg="white",
+            radius=6,
+            command=self.prev_date
+        )
+        btn_prev.pack(side=tk.LEFT, padx=3)
+
+        btn_today = RoundedButton(
+            date_frame,
+            text="오늘",
+            font=("굴림체", 10),
+            bg="#27ae60",
+            fg="white",
+            radius=6,
+            command=self.goto_today
+        )
+        btn_today.pack(side=tk.LEFT, padx=3)
+
+        btn_next = RoundedButton(
+            date_frame,
+            text="다음 ▶",
+            font=("굴림체", 10),
+            bg="#3498db",
+            fg="white",
+            radius=6,
+            command=self.next_date
+        )
+        btn_next.pack(side=tk.LEFT, padx=3)
+
+        # 기본 업무 관리 버튼 (둥근 모서리)
+        btn_manage_default = RoundedButton(
+            date_frame,
+            text="기본 업무 관리",
+            font=("굴림체", 10),
+            bg="#16a085",
+            fg="white",
+            radius=6,
+            command=self.manage_default_tasks
+        )
+        btn_manage_default.pack(side=tk.LEFT, padx=3)
+
+        # 기간별 통계 버튼 (둥근 모서리)
+        btn_period_summary = RoundedButton(
+            date_frame,
+            text="기간별 통계",
+            font=("굴림체", 10),
+            bg="#2980b9",
+            fg="white",
+            radius=6,
+            command=self.show_period_summary
+        )
+        btn_period_summary.pack(side=tk.LEFT, padx=3)
+
+        # 오른쪽: 사용자 정보 및 로그아웃/종료 버튼
+        user_frame = tk.Frame(header_frame, bg="#2c3e50")
+        user_frame.pack(side=tk.RIGHT, padx=15, pady=5)
 
         if self.current_user:
             user_label = tk.Label(
@@ -670,25 +743,25 @@ class TimeTableGUI:
             logout_btn = RoundedButton(
                 user_frame,
                 text="로그아웃",
-                font=("굴림체", 11),
+                font=("굴림체", 10),
                 bg="#e74c3c",
                 fg="white",
                 radius=6,
                 command=self.logout
             )
-            logout_btn.pack(side=tk.LEFT)
+            logout_btn.pack(side=tk.LEFT, padx=3)
 
             # 종료 버튼
             exit_btn = RoundedButton(
                 user_frame,
                 text="종료",
-                font=("굴림체", 11),
+                font=("굴림체", 10),
                 bg="#7f8c8d",
                 fg="white",
                 radius=6,
                 command=self.exit_program
             )
-            exit_btn.pack(side=tk.LEFT, padx=(10, 0))
+            exit_btn.pack(side=tk.LEFT, padx=3)
 
         # 메뉴바 추가
         menubar = tk.Menu(self.root)
@@ -715,111 +788,42 @@ class TimeTableGUI:
         help_menu.add_separator()
         help_menu.add_command(label="버전 정보", command=self.show_about)
 
-        # 날짜 선택 영역
-        date_frame = tk.Frame(self.root, bg="#34495e", height=50)
-        date_frame.pack(fill=tk.X, side=tk.TOP)
-
-        # 날짜 선택 위젯
-        tk.Label(
-            date_frame,
-            text="작업 날짜:",
-            font=("굴림체", 22, "bold"),
-            bg="#34495e",
-            fg="white"
-        ).pack(side=tk.LEFT, padx=(20, 10), pady=10)
-
-        self.date_entry = DateEntry(
-            date_frame,
-            font=("굴림체", 20),
-            width=12,
-            background='darkblue',
-            foreground='white',
-            borderwidth=2,
-            date_pattern='yyyy-mm-dd',
-            locale='ko_KR'
-        )
-        self.date_entry.pack(side=tk.LEFT, padx=5, pady=10)
-        self.date_entry.bind("<<DateEntrySelected>>", self.on_date_changed)
-
-        # 날짜 이동 버튼 (둥근 모서리)
-        btn_prev = RoundedButton(
-            date_frame,
-            text="◀ 이전",
-            font=("굴림체", 11),
-            bg="#3498db",
-            fg="white",
-            radius=6,
-            command=self.prev_date
-        )
-        btn_prev.pack(side=tk.LEFT, padx=5, pady=10)
-
-        btn_today = RoundedButton(
-            date_frame,
-            text="오늘",
-            font=("굴림체", 11),
-            bg="#27ae60",
-            fg="white",
-            radius=6,
-            command=self.goto_today
-        )
-        btn_today.pack(side=tk.LEFT, padx=5, pady=10)
-
-        btn_next = RoundedButton(
-            date_frame,
-            text="다음 ▶",
-            font=("굴림체", 11),
-            bg="#3498db",
-            fg="white",
-            radius=6,
-            command=self.next_date
-        )
-        btn_next.pack(side=tk.LEFT, padx=5, pady=10)
-
-        # 기본 업무 관리 버튼 (둥근 모서리)
-        btn_manage_default = RoundedButton(
-            date_frame,
-            text="기본 업무 관리",
-            font=("굴림체", 11),
-            bg="#16a085",
-            fg="white",
-            radius=6,
-            command=self.manage_default_tasks
-        )
-        btn_manage_default.pack(side=tk.LEFT, padx=5, pady=10)
-
-        # 기간별 통계 버튼 (둥근 모서리)
-        btn_period_summary = RoundedButton(
-            date_frame,
-            text="기간별 통계",
-            font=("굴림체", 11),
-            bg="#2980b9",
-            fg="white",
-            radius=6,
-            command=self.show_period_summary
-        )
-        btn_period_summary.pack(side=tk.LEFT, padx=5, pady=10)
-
         # 메인 컨테이너 (세로 방향)
         main_container = tk.Frame(self.root)
         main_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # 타임테이블 표시 영역 (전체 화면 사용)
+        # 타임테이블 표시 영역 (상단)
         top_frame = tk.Frame(main_container)
-        top_frame.pack(fill=tk.BOTH, expand=True)
+        top_frame.pack(fill=tk.X, expand=False)
 
         # 타임테이블 그리드
         self.setup_canvas_grid(top_frame)
 
+        # 하단 영역 (법인별 합계 + 변동 내역) - 메인 컨테이너에 직접 배치
+        self.bottom_summary_frame = tk.Frame(main_container, bg="white")
+        self.bottom_summary_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
+
     def setup_canvas_grid(self, parent):
-        """Canvas 기반 타임테이블 그리드 설정"""
-        # Canvas와 Scrollbar 생성하여 가로 스크롤 지원
-        canvas = tk.Canvas(parent, bg="white")
-        h_scrollbar = tk.Scrollbar(parent, orient=tk.HORIZONTAL, command=canvas.xview)
-        canvas.configure(xscrollcommand=h_scrollbar.set)
+        """Canvas 기반 타임테이블 그리드 설정 (화면 70% 높이, 스크롤바 지원)"""
+        # 화면 높이의 70% 계산
+        screen_height = self.root.winfo_screenheight()
+        grid_height = int(screen_height * 0.70)
+
+        # 외부 컨테이너 프레임 (고정 높이)
+        grid_container = tk.Frame(parent, bg="white", height=grid_height)
+        grid_container.pack(fill=tk.X, expand=False)
+        grid_container.pack_propagate(False)  # 고정 높이 유지
+
+        # Canvas와 Scrollbar 생성 (가로 + 세로 스크롤 지원)
+        canvas = tk.Canvas(grid_container, bg="white")
+        h_scrollbar = tk.Scrollbar(grid_container, orient=tk.HORIZONTAL, command=canvas.xview)
+        v_scrollbar = tk.Scrollbar(grid_container, orient=tk.VERTICAL, command=canvas.yview)
+        canvas.configure(xscrollcommand=h_scrollbar.set, yscrollcommand=v_scrollbar.set)
 
         # Scrollbar 배치
+        v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         h_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
-        canvas.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         # Frame을 Canvas 안에 배치
         self.canvas_frame = tk.Frame(canvas, bg="white")
@@ -831,11 +835,19 @@ class TimeTableGUI:
 
         self.canvas_frame.bind("<Configure>", update_scroll_region)
 
-        # 마우스 휠 스크롤 지원
-        def on_mousewheel(event):
+        # 마우스 휠 스크롤 지원 (세로)
+        def on_mousewheel_vertical(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        # 마우스 휠 스크롤 지원 (가로 - Shift+휠)
+        def on_mousewheel_horizontal(event):
             canvas.xview_scroll(int(-1 * (event.delta / 120)), "units")
 
-        canvas.bind_all("<Shift-MouseWheel>", on_mousewheel)
+        canvas.bind_all("<MouseWheel>", on_mousewheel_vertical)
+        canvas.bind_all("<Shift-MouseWheel>", on_mousewheel_horizontal)
+
+        # 캔버스 참조 저장
+        self.main_canvas = canvas
 
         # 클릭 이벤트를 위한 딕셔너리 (시간 -> 위젯)
         self.time_slot_widgets = {}
@@ -844,6 +856,16 @@ class TimeTableGUI:
         """날짜 변경 시 호출"""
         selected_date = self.date_entry.get_date()
         self.manager.set_current_date(selected_date)
+
+        # 변동 내역 날짜도 동기화
+        if hasattr(self, 'reason_start_date'):
+            self.reason_start_date.set_date(selected_date)
+        if hasattr(self, 'reason_end_date'):
+            self.reason_end_date.set_date(selected_date)
+
+        # 기간 조회 모드 해제 (단일 날짜 모드로 전환)
+        self.reason_period_mode = False
+        self.reason_period_data = None
 
         self.refresh_timetable()
 
@@ -921,7 +943,7 @@ class TimeTableGUI:
         time_slots = self.manager.time_slots
         col_label_width = int(screen_width * 0.08)  # 화면 너비의 8%
         corp_name_width = int(screen_width * 0.065)  # 법인명 열 너비 (화면 너비의 6.5%)
-        extra_time_width = int(screen_width * 0.10)  # 추가시간 열 너비 (화면 너비의 10%)
+        extra_time_width = int(screen_width * 0.09)  # 추가시간 열 너비 (화면 너비의 9%)
         remaining_width = frame_width - col_label_width - corp_name_width - extra_time_width - 20
         time_col_width = max(40, int(remaining_width / len(time_slots)))  # 각 시간 컬럼 너비
 
@@ -1027,10 +1049,13 @@ class TimeTableGUI:
         self.canvas_frame.grid_columnconfigure(1, minsize=corp_name_width)  # 법인명 열 너비 (반응형)
         self.canvas_frame.grid_columnconfigure(len(time_slots) + 2, minsize=extra_time_width)  # 추가시간 열 너비 (반응형)
 
-        # 행 높이 설정 (화면 높이에 비례)
-        # 업체 수를 고려해서 행 높이 계산 (6개 업체 × 3줄 = 18줄 + 헤더 + 총합)
-        available_height = frame_height - 100  # 헤더/여백 제외
-        row_height = max(20, int(available_height / 30))  # 최소 20px, 30줄로 나눔 (행 높이 축소)
+        # 행 높이 설정 (업체 수에 따라 자동 조정) - 60% 축소 (원본 대비)
+        # 각 업체당: 기본업무 행(1) + 특수상황 행(1) + 구분선(0.3) = 약 2.3행
+        # 추가: 헤더 행(1) + 총합 행(1) = 2행
+        company_count = len(all_company_corps)
+        total_rows = company_count * 2.3 + 2  # 업체별 행 + 헤더/총합
+        available_height = frame_height - 50  # 스크롤바/여백 제외
+        row_height = max(13, min(25, int(available_height / total_rows)))  # 최소 13px, 최대 25px (60% 축소)
 
         # (업체명, 법인명) 조합별로 행 생성 (기본업무 행 + 특수상황 행, 한 줄 띄우기)
         row_num = 1
@@ -1272,20 +1297,37 @@ class TimeTableGUI:
 
             total_extra_minutes += extra_minutes
 
+        # 하단 영역 초기화 (bottom_summary_frame 사용)
+        for widget in self.bottom_summary_frame.winfo_children():
+            widget.destroy()
+
+        # 하단 컨테이너 프레임 (왼쪽: 합계, 오른쪽: 변동 내역) - 메인 컨테이너 하단에 배치
+        bottom_container = tk.Frame(self.bottom_summary_frame, bg="white")
+        bottom_container.pack(fill=tk.BOTH, expand=True)
+
+        # grid 레이아웃 사용하여 50:50 분할
+        bottom_container.grid_columnconfigure(0, weight=1, uniform="half")
+        bottom_container.grid_columnconfigure(1, weight=1, uniform="half")
+        bottom_container.grid_rowconfigure(0, weight=1)
+
+        # 왼쪽 프레임 (법인별 합계 + 총 추가 시간) - 화면의 50%
+        left_frame = tk.Frame(bottom_container, bg="white")
+        left_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+
         # 법인별 합계 표시
         if corp_name_totals:
             # 제목 행
             tk.Label(
-                self.canvas_frame,
+                left_frame,
                 text="법인별 추가 시간 합계",
                 font=("굴림체", 14, "bold"),
                 bg="#E3F2FD",
                 fg="#1976D2",
                 relief=tk.RIDGE,
                 borderwidth=2,
-                pady=5
-            ).grid(row=row_num, column=0, columnspan=len(time_slots) + 3, sticky="ew", pady=(10, 0))
-            row_num += 1
+                pady=5,
+                width=30
+            ).pack(fill=tk.X)
 
             # 각 법인별 합계 표시
             for corp_name, minutes in sorted(corp_name_totals.items()):
@@ -1307,7 +1349,7 @@ class TimeTableGUI:
                     time_text = "0"
 
                 tk.Label(
-                    self.canvas_frame,
+                    left_frame,
                     text=f"{corp_name}: {time_text}",
                     font=("굴림체", 12),
                     bg="#E8F5E9",
@@ -1315,8 +1357,7 @@ class TimeTableGUI:
                     relief=tk.RIDGE,
                     borderwidth=1,
                     pady=3
-                ).grid(row=row_num, column=0, columnspan=len(time_slots) + 3, sticky="ew")
-                row_num += 1
+                ).pack(fill=tk.X)
 
         # 총합을 시간 형식으로 변환
         if total_extra_minutes != 0:
@@ -1338,17 +1379,500 @@ class TimeTableGUI:
 
         # 총합 레이블 표시
         total_label = tk.Label(
-            self.canvas_frame,
+            left_frame,
             text=total_text,
-            font=("굴림체", 24, "bold"),
+            font=("굴림체", 16, "bold"),
             bg="#FFF9C4",
             fg="#E65100",
             relief=tk.RIDGE,
             borderwidth=2,
-            padx=20,
-            pady=8
+            padx=10,
+            pady=5
         )
-        total_label.grid(row=row_num, column=0, columnspan=len(time_slots) + 3, sticky="ew", pady=10)  # +3으로 변경
+        total_label.pack(fill=tk.X, pady=(10, 0))
+
+        # 오른쪽 프레임 (변동 내역 그리드) - 화면의 50%
+        right_frame = tk.Frame(bottom_container, bg="#f5f5f5", relief=tk.RIDGE, borderwidth=1)
+        right_frame.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
+
+        # 변동 내역 그리드 추가
+        self.create_reason_grid(right_frame)
+
+    def create_reason_grid(self, parent_frame):
+        """변동 내역 그리드 생성 (스크롤바 포함)"""
+        # 변동 내역 프레임
+        reason_frame = tk.Frame(parent_frame, bg="white")
+        reason_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        self.reason_frame = reason_frame
+
+        # 헤더
+        header_frame = tk.Frame(reason_frame, bg="#34495e")
+        header_frame.pack(fill=tk.X)
+
+        tk.Label(header_frame, text="변동 내역", font=("맑은 고딕", 12, "bold"),
+                 bg="#34495e", fg="white", pady=8).pack(side=tk.LEFT, padx=10)
+
+        # 기간 조회 영역
+        period_frame = tk.Frame(header_frame, bg="#34495e")
+        period_frame.pack(side=tk.LEFT, padx=20)
+
+        tk.Label(period_frame, text="기간:", font=("맑은 고딕", 9),
+                 bg="#34495e", fg="white").pack(side=tk.LEFT, padx=(0, 5))
+
+        # 시작일
+        self.reason_start_date = DateEntry(period_frame, width=10, font=("맑은 고딕", 9),
+                                           date_pattern="yyyy-mm-dd", locale="ko_KR")
+        self.reason_start_date.pack(side=tk.LEFT, padx=2)
+
+        tk.Label(period_frame, text="~", font=("맑은 고딕", 9),
+                 bg="#34495e", fg="white").pack(side=tk.LEFT, padx=5)
+
+        # 종료일
+        self.reason_end_date = DateEntry(period_frame, width=10, font=("맑은 고딕", 9),
+                                         date_pattern="yyyy-mm-dd", locale="ko_KR")
+        self.reason_end_date.pack(side=tk.LEFT, padx=2)
+
+        # 기간 조회 버튼
+        period_btn = tk.Button(period_frame, text="기간 조회", font=("맑은 고딕", 9),
+                               bg="#3498db", fg="white", padx=8, pady=1,
+                               command=self.search_reason_by_period, cursor="hand2")
+        period_btn.pack(side=tk.LEFT, padx=(10, 0))
+
+        # 오늘 버튼 (현재 날짜로 초기화)
+        today_btn = tk.Button(period_frame, text="오늘", font=("맑은 고딕", 9),
+                              bg="#95a5a6", fg="white", padx=8, pady=1,
+                              command=self.reset_reason_to_today, cursor="hand2")
+        today_btn.pack(side=tk.LEFT, padx=(5, 0))
+
+        # 엑셀 내보내기 버튼
+        export_btn = tk.Button(header_frame, text="엑셀 저장", font=("맑은 고딕", 9),
+                               bg="#27ae60", fg="white", padx=10, pady=2,
+                               command=self.export_reason_to_excel, cursor="hand2")
+        export_btn.pack(side=tk.RIGHT, padx=10, pady=5)
+
+        # 기간 조회 모드 플래그
+        self.reason_period_mode = False
+        self.reason_period_data = None
+
+        # 스크롤 가능한 영역 생성
+        scroll_frame = tk.Frame(reason_frame, bg="white")
+        scroll_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        # 캔버스와 스크롤바
+        canvas = tk.Canvas(scroll_frame, bg="white", highlightthickness=0)
+        scrollbar = tk.Scrollbar(scroll_frame, orient="vertical", command=canvas.yview)
+
+        # 그리드 컨테이너 (캔버스 내부)
+        grid_container = tk.Frame(canvas, bg="white")
+        self.reason_grid_container = grid_container
+
+        # 캔버스에 프레임 배치
+        canvas_window = canvas.create_window((0, 0), window=grid_container, anchor="nw")
+
+        # 스크롤바 설정
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        # 레이아웃
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        # 그리드 크기 변경 시 스크롤 영역 업데이트
+        def on_frame_configure(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+
+        def on_canvas_configure(event):
+            canvas.itemconfig(canvas_window, width=event.width)
+
+        grid_container.bind("<Configure>", on_frame_configure)
+        canvas.bind("<Configure>", on_canvas_configure)
+
+        # 마우스 휠 스크롤 지원 (변동 내역 영역에서만)
+        def on_mousewheel_reason(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            return "break"  # 이벤트 전파 중단
+
+        # 마우스가 영역 안에 들어왔을 때만 스크롤 활성화
+        def bind_mousewheel(event):
+            canvas.bind("<MouseWheel>", on_mousewheel_reason)
+
+        def unbind_mousewheel(event):
+            canvas.unbind("<MouseWheel>")
+
+        canvas.bind("<Enter>", bind_mousewheel)
+        canvas.bind("<Leave>", unbind_mousewheel)
+        grid_container.bind("<Enter>", bind_mousewheel)
+        grid_container.bind("<Leave>", unbind_mousewheel)
+
+        # 캔버스 참조 저장
+        self.reason_canvas = canvas
+
+        # 그리드 내용 채우기
+        self.refresh_reason_grid()
+
+    def refresh_reason_grid(self):
+        """변동 내역 그리드 새로고침"""
+        if not hasattr(self, 'reason_grid_container'):
+            return
+        if not hasattr(self, 'date_entry'):
+            return
+
+        # 기존 위젯 삭제
+        for widget in self.reason_grid_container.winfo_children():
+            widget.destroy()
+
+        # 헤더 행 (사용자 컬럼 추가)
+        headers = ["업체", "법인", "변동 시간", "사유", "입력자"]
+        header_widths = [80, 100, 100, 300, 80]
+        header_bg = "#ecf0f1"
+
+        for i, (header, width) in enumerate(zip(headers, header_widths)):
+            lbl = tk.Label(self.reason_grid_container, text=header, font=("맑은 고딕", 10, "bold"),
+                          bg=header_bg, fg="#2c3e50", relief=tk.RIDGE, borderwidth=1,
+                          width=width//8, pady=5)
+            lbl.grid(row=0, column=i, sticky="ew")
+
+        # 데이터 조회
+        work_date = self.date_entry.get_date().strftime("%Y-%m-%d")
+        reasons = self.manager.db.get_all_special_time_reasons(work_date)
+
+        if not reasons:
+            # 데이터 없음 메시지
+            tk.Label(self.reason_grid_container, text="변동 내역이 없습니다.",
+                    font=("맑은 고딕", 10), bg="white", fg="#7f8c8d", pady=10).grid(
+                row=1, column=0, columnspan=5, sticky="ew")
+            return
+
+        # 데이터 행
+        for row_idx, reason_data in enumerate(reasons, start=1):
+            company = reason_data.get('company', '')
+            corp_name = reason_data.get('corp_name', '')
+            added_time = reason_data.get('added_time', 0)
+            reason = reason_data.get('reason', '')
+            username = reason_data.get('username', '')
+
+            # 시간 포맷
+            if added_time != 0:
+                abs_min = abs(added_time)
+                hours = abs_min // 60
+                mins = abs_min % 60
+                sign = "+" if added_time > 0 else "-"
+
+                if hours > 0 and mins > 0:
+                    time_text = f"{sign}{hours}h {mins}m"
+                elif hours > 0:
+                    time_text = f"{sign}{hours}h"
+                else:
+                    time_text = f"{sign}{mins}m"
+            else:
+                time_text = "0"
+
+            # 색상
+            time_fg = "#e74c3c" if added_time > 0 else "#27ae60"
+            row_bg = "#ffffff" if row_idx % 2 == 1 else "#f9f9f9"
+
+            # 셀 생성
+            tk.Label(self.reason_grid_container, text=company, font=("맑은 고딕", 10),
+                    bg=row_bg, relief=tk.RIDGE, borderwidth=1, pady=3).grid(row=row_idx, column=0, sticky="ew")
+            tk.Label(self.reason_grid_container, text=corp_name, font=("맑은 고딕", 10),
+                    bg=row_bg, relief=tk.RIDGE, borderwidth=1, pady=3).grid(row=row_idx, column=1, sticky="ew")
+            tk.Label(self.reason_grid_container, text=time_text, font=("맑은 고딕", 10, "bold"),
+                    bg=row_bg, fg=time_fg, relief=tk.RIDGE, borderwidth=1, pady=3).grid(row=row_idx, column=2, sticky="ew")
+            tk.Label(self.reason_grid_container, text=reason, font=("맑은 고딕", 10),
+                    bg=row_bg, relief=tk.RIDGE, borderwidth=1, pady=3, anchor="w", padx=5).grid(row=row_idx, column=3, sticky="ew")
+            tk.Label(self.reason_grid_container, text=username, font=("맑은 고딕", 10),
+                    bg=row_bg, relief=tk.RIDGE, borderwidth=1, pady=3).grid(row=row_idx, column=4, sticky="ew")
+
+        # 열 가중치 설정
+        self.reason_grid_container.grid_columnconfigure(3, weight=1)
+
+    def search_reason_by_period(self):
+        """기간별 변동 내역 조회"""
+        if not hasattr(self, 'reason_start_date') or not hasattr(self, 'reason_end_date'):
+            return
+
+        start_date = self.reason_start_date.get_date().strftime("%Y-%m-%d")
+        end_date = self.reason_end_date.get_date().strftime("%Y-%m-%d")
+
+        # 시작일이 종료일보다 늦으면 경고
+        if start_date > end_date:
+            messagebox.showwarning("경고", "시작일이 종료일보다 늦습니다.")
+            return
+
+        # 기간별 데이터 조회
+        reasons = self.manager.db.get_special_time_reasons_by_period(start_date, end_date)
+
+        # 기간 조회 모드 설정
+        self.reason_period_mode = True
+        self.reason_period_data = reasons
+        self.reason_period_start = start_date
+        self.reason_period_end = end_date
+
+        # 그리드 새로고침 (기간 조회 데이터 사용)
+        self.refresh_reason_grid_with_data(reasons, is_period=True)
+
+    def reset_reason_to_today(self):
+        """변동 내역을 오늘 날짜로 초기화"""
+        today = date.today()
+        if hasattr(self, 'reason_start_date'):
+            self.reason_start_date.set_date(today)
+        if hasattr(self, 'reason_end_date'):
+            self.reason_end_date.set_date(today)
+
+        # 기간 조회 모드 해제
+        self.reason_period_mode = False
+        self.reason_period_data = None
+
+        # 현재 선택된 날짜로 새로고침
+        self.refresh_reason_grid()
+
+    def refresh_reason_grid_with_data(self, reasons, is_period=False):
+        """데이터로 변동 내역 그리드 새로고침"""
+        if not hasattr(self, 'reason_grid_container'):
+            return
+
+        # 기존 위젯 삭제
+        for widget in self.reason_grid_container.winfo_children():
+            widget.destroy()
+
+        # 헤더 행 (기간 조회 시 날짜 컬럼 추가, 입력자 컬럼 추가)
+        if is_period:
+            headers = ["날짜", "업체", "법인", "변동 시간", "사유", "입력자"]
+            header_widths = [100, 80, 100, 100, 220, 80]
+        else:
+            headers = ["업체", "법인", "변동 시간", "사유", "입력자"]
+            header_widths = [80, 100, 100, 300, 80]
+
+        header_bg = "#ecf0f1"
+
+        for i, (header, width) in enumerate(zip(headers, header_widths)):
+            lbl = tk.Label(self.reason_grid_container, text=header, font=("맑은 고딕", 10, "bold"),
+                          bg=header_bg, fg="#2c3e50", relief=tk.RIDGE, borderwidth=1,
+                          width=width//8, pady=5)
+            lbl.grid(row=0, column=i, sticky="ew")
+
+        if not reasons:
+            # 데이터 없음 메시지
+            col_span = 6 if is_period else 5
+            tk.Label(self.reason_grid_container, text="변동 내역이 없습니다.",
+                    font=("맑은 고딕", 10), bg="white", fg="#7f8c8d", pady=10).grid(
+                row=1, column=0, columnspan=col_span, sticky="ew")
+            return
+
+        # 데이터 행
+        for row_idx, reason_data in enumerate(reasons, start=1):
+            work_date = reason_data.get('work_date', '')
+            company = reason_data.get('company', '')
+            corp_name = reason_data.get('corp_name', '')
+            added_time = reason_data.get('added_time', 0)
+            reason = reason_data.get('reason', '')
+            username = reason_data.get('username', '')
+
+            # 시간 포맷
+            if added_time != 0:
+                abs_min = abs(added_time)
+                hours = abs_min // 60
+                mins = abs_min % 60
+                sign = "+" if added_time > 0 else "-"
+
+                if hours > 0 and mins > 0:
+                    time_text = f"{sign}{hours}h {mins}m"
+                elif hours > 0:
+                    time_text = f"{sign}{hours}h"
+                else:
+                    time_text = f"{sign}{mins}m"
+            else:
+                time_text = "0"
+
+            # 색상
+            time_fg = "#e74c3c" if added_time > 0 else "#27ae60"
+            row_bg = "#ffffff" if row_idx % 2 == 1 else "#f9f9f9"
+
+            col = 0
+            if is_period:
+                # 날짜 컬럼
+                tk.Label(self.reason_grid_container, text=work_date, font=("맑은 고딕", 10),
+                        bg=row_bg, relief=tk.RIDGE, borderwidth=1, pady=3).grid(row=row_idx, column=col, sticky="ew")
+                col += 1
+
+            # 셀 생성
+            tk.Label(self.reason_grid_container, text=company, font=("맑은 고딕", 10),
+                    bg=row_bg, relief=tk.RIDGE, borderwidth=1, pady=3).grid(row=row_idx, column=col, sticky="ew")
+            tk.Label(self.reason_grid_container, text=corp_name, font=("맑은 고딕", 10),
+                    bg=row_bg, relief=tk.RIDGE, borderwidth=1, pady=3).grid(row=row_idx, column=col+1, sticky="ew")
+            tk.Label(self.reason_grid_container, text=time_text, font=("맑은 고딕", 10, "bold"),
+                    bg=row_bg, fg=time_fg, relief=tk.RIDGE, borderwidth=1, pady=3).grid(row=row_idx, column=col+2, sticky="ew")
+            tk.Label(self.reason_grid_container, text=reason, font=("맑은 고딕", 10),
+                    bg=row_bg, relief=tk.RIDGE, borderwidth=1, pady=3, anchor="w", padx=5).grid(row=row_idx, column=col+3, sticky="ew")
+            tk.Label(self.reason_grid_container, text=username, font=("맑은 고딕", 10),
+                    bg=row_bg, relief=tk.RIDGE, borderwidth=1, pady=3).grid(row=row_idx, column=col+4, sticky="ew")
+
+        # 열 가중치 설정 (사유 컬럼)
+        last_col = 4 if is_period else 3
+        self.reason_grid_container.grid_columnconfigure(last_col, weight=1)
+
+    def export_reason_to_excel(self):
+        """변동 내역을 엑셀 파일로 내보내기"""
+        try:
+            import openpyxl
+            from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+        except ImportError:
+            messagebox.showerror("오류", "엑셀 내보내기를 위해 openpyxl 라이브러리가 필요합니다.\n\npip install openpyxl")
+            return
+
+        # 기간 조회 모드 확인
+        is_period = getattr(self, 'reason_period_mode', False)
+
+        if is_period and hasattr(self, 'reason_period_data'):
+            # 기간 조회 데이터 사용
+            reasons = self.reason_period_data
+            start_date = getattr(self, 'reason_period_start', '')
+            end_date = getattr(self, 'reason_period_end', '')
+            title_text = f"변동 내역 ({start_date} ~ {end_date})"
+            default_filename = f"변동내역_{start_date.replace('-', '')}_{end_date.replace('-', '')}.xlsx"
+        else:
+            # 단일 날짜 데이터 조회
+            work_date = self.date_entry.get_date().strftime("%Y-%m-%d")
+            reasons = self.manager.db.get_all_special_time_reasons(work_date)
+            title_text = f"변동 내역 ({work_date})"
+            default_filename = f"변동내역_{work_date.replace('-', '')}.xlsx"
+
+        if not reasons:
+            messagebox.showinfo("알림", "내보낼 변동 내역이 없습니다.")
+            return
+
+        # 파일 저장 경로 선택
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".xlsx",
+            filetypes=[("Excel 파일", "*.xlsx")],
+            initialfile=default_filename,
+            title="엑셀 파일 저장"
+        )
+
+        if not file_path:
+            return
+
+        try:
+            # 워크북 생성
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = "변동 내역"
+
+            # 스타일 정의
+            header_font = Font(name="맑은 고딕", size=11, bold=True)
+            header_fill = PatternFill(start_color="34495E", end_color="34495E", fill_type="solid")
+            header_alignment = Alignment(horizontal="center", vertical="center")
+
+            data_font = Font(name="맑은 고딕", size=10)
+            data_alignment = Alignment(horizontal="center", vertical="center")
+            reason_alignment = Alignment(horizontal="left", vertical="center")
+
+            thin_border = Border(
+                left=Side(style='thin'),
+                right=Side(style='thin'),
+                top=Side(style='thin'),
+                bottom=Side(style='thin')
+            )
+
+            # 제목 행
+            if is_period:
+                ws.merge_cells('A1:F1')
+                headers = ["날짜", "업체", "법인", "변동 시간", "사유", "입력자"]
+            else:
+                ws.merge_cells('A1:E1')
+                headers = ["업체", "법인", "변동 시간", "사유", "입력자"]
+
+            ws['A1'] = title_text
+            ws['A1'].font = Font(name="맑은 고딕", size=14, bold=True)
+            ws['A1'].alignment = Alignment(horizontal="center", vertical="center")
+            ws.row_dimensions[1].height = 30
+
+            # 헤더 행
+            for col, header in enumerate(headers, start=1):
+                cell = ws.cell(row=3, column=col, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = header_alignment
+                cell.border = thin_border
+                cell.font = Font(name="맑은 고딕", size=11, bold=True, color="FFFFFF")
+
+            # 데이터 행
+            for row_idx, reason_data in enumerate(reasons, start=4):
+                work_date_val = reason_data.get('work_date', '')
+                company = reason_data.get('company', '')
+                corp_name = reason_data.get('corp_name', '')
+                added_time = reason_data.get('added_time', 0)
+                reason = reason_data.get('reason', '')
+                username = reason_data.get('username', '')
+
+                # 시간 포맷
+                if added_time != 0:
+                    abs_min = abs(added_time)
+                    hours = abs_min // 60
+                    mins = abs_min % 60
+                    sign = "+" if added_time > 0 else "-"
+
+                    if hours > 0 and mins > 0:
+                        time_text = f"{sign}{hours}h {mins}m"
+                    elif hours > 0:
+                        time_text = f"{sign}{hours}h"
+                    else:
+                        time_text = f"{sign}{mins}m"
+                else:
+                    time_text = "0"
+
+                col_offset = 0
+                if is_period:
+                    # 날짜 컬럼
+                    ws.cell(row=row_idx, column=1, value=work_date_val).font = data_font
+                    ws.cell(row=row_idx, column=1).alignment = data_alignment
+                    ws.cell(row=row_idx, column=1).border = thin_border
+                    col_offset = 1
+
+                # 셀 작성
+                ws.cell(row=row_idx, column=1+col_offset, value=company).font = data_font
+                ws.cell(row=row_idx, column=1+col_offset).alignment = data_alignment
+                ws.cell(row=row_idx, column=1+col_offset).border = thin_border
+
+                ws.cell(row=row_idx, column=2+col_offset, value=corp_name).font = data_font
+                ws.cell(row=row_idx, column=2+col_offset).alignment = data_alignment
+                ws.cell(row=row_idx, column=2+col_offset).border = thin_border
+
+                time_cell = ws.cell(row=row_idx, column=3+col_offset, value=time_text)
+                time_cell.font = Font(name="맑은 고딕", size=10, bold=True,
+                                      color="E74C3C" if added_time > 0 else "27AE60")
+                time_cell.alignment = data_alignment
+                time_cell.border = thin_border
+
+                ws.cell(row=row_idx, column=4+col_offset, value=reason).font = data_font
+                ws.cell(row=row_idx, column=4+col_offset).alignment = reason_alignment
+                ws.cell(row=row_idx, column=4+col_offset).border = thin_border
+
+                # 입력자 컬럼
+                ws.cell(row=row_idx, column=5+col_offset, value=username).font = data_font
+                ws.cell(row=row_idx, column=5+col_offset).alignment = data_alignment
+                ws.cell(row=row_idx, column=5+col_offset).border = thin_border
+
+            # 열 너비 설정
+            if is_period:
+                ws.column_dimensions['A'].width = 12
+                ws.column_dimensions['B'].width = 15
+                ws.column_dimensions['C'].width = 18
+                ws.column_dimensions['D'].width = 15
+                ws.column_dimensions['E'].width = 40
+                ws.column_dimensions['F'].width = 12
+            else:
+                ws.column_dimensions['A'].width = 15
+                ws.column_dimensions['B'].width = 18
+                ws.column_dimensions['C'].width = 15
+                ws.column_dimensions['D'].width = 40
+                ws.column_dimensions['E'].width = 12
+
+            # 파일 저장
+            wb.save(file_path)
+            messagebox.showinfo("완료", f"엑셀 파일이 저장되었습니다.\n\n{file_path}")
+
+        except Exception as e:
+            messagebox.showerror("오류", f"엑셀 파일 저장 중 오류가 발생했습니다.\n\n{str(e)}")
 
     def calculate_extra_time(self, company, corp_name, company_tasks):
         """기본 시간과 특수 시간의 차이 계산 (업체명+법인명 기준)"""
@@ -1647,10 +2171,122 @@ class TimeTableGUI:
             # 드래그한 업체+법인명의 추가 시간 업데이트
             self.update_extra_time_display(self.drag_company, self.drag_corp_name)
 
+            # 사유 입력 다이얼로그 표시
+            self.show_reason_dialog(self.drag_company, self.drag_corp_name)
+
         self.is_cell_dragging = False
         self.dragged_cells = set()
         self.drag_company = None
         self.drag_corp_name = None
+
+    def show_reason_dialog(self, company, corp_name):
+        """특수 시간 변동 사유 입력 다이얼로그"""
+        # 현재 추가 시간 계산
+        default_tasks = self.manager.get_default_tasks()
+        company_tasks = {}
+        for display_order, task_info in default_tasks.items():
+            if task_info.get("company", "") == company and task_info.get("task", "") == corp_name:
+                time_slot = task_info.get("time_slot", "")
+                if time_slot:
+                    company_tasks[time_slot] = task_info
+
+        extra_time_text = self.calculate_extra_time(company, corp_name, company_tasks)
+
+        # 추가 시간이 0이면 사유 입력 불필요
+        if not extra_time_text or extra_time_text in ["0", "+0m", "-0m"]:
+            # 기존 사유 삭제
+            work_date = self.date_entry.get_date().strftime("%Y-%m-%d")
+            self.manager.db.delete_special_time_reason(work_date, company, corp_name)
+            self.refresh_reason_grid()
+            return
+
+        # 추가 시간을 분으로 변환
+        extra_minutes = 0
+        if extra_time_text:
+            sign = 1 if extra_time_text.startswith("+") else -1
+            parts = extra_time_text[1:].split()
+            for part in parts:
+                if 'h' in part:
+                    hours = int(part.replace('h', ''))
+                    extra_minutes += sign * hours * 60
+                elif 'm' in part:
+                    minutes = int(part.replace('m', ''))
+                    extra_minutes += sign * minutes
+
+        # 사유 입력 다이얼로그
+        dialog = tk.Toplevel(self.root)
+        dialog.title("변동 사유 입력")
+        dialog.geometry("400x280")
+        dialog.resizable(False, False)
+
+        # 화면 중앙 배치
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() - 400) // 2
+        y = (dialog.winfo_screenheight() - 280) // 2
+        dialog.geometry(f"400x280+{x}+{y}")
+
+        dialog.transient(self.root)
+        dialog.grab_set()
+
+        # 정보 표시
+        info_frame = tk.Frame(dialog)
+        info_frame.pack(fill=tk.X, padx=20, pady=(20, 10))
+
+        tk.Label(info_frame, text=f"업체: {company}", font=("맑은 고딕", 10)).pack(anchor="w")
+        tk.Label(info_frame, text=f"법인: {corp_name}", font=("맑은 고딕", 10)).pack(anchor="w")
+        tk.Label(info_frame, text=f"변동 시간: {extra_time_text}", font=("맑은 고딕", 10, "bold"),
+                 fg="#e74c3c" if extra_minutes > 0 else "#27ae60").pack(anchor="w")
+
+        # 사유 입력
+        tk.Label(dialog, text="변동 사유:", font=("맑은 고딕", 10)).pack(anchor="w", padx=20, pady=(10, 5))
+
+        reason_entry = tk.Entry(dialog, font=("맑은 고딕", 11), width=40)
+        reason_entry.pack(padx=20, fill=tk.X)
+
+        # 기존 사유 조회
+        work_date = self.date_entry.get_date().strftime("%Y-%m-%d")
+        existing = self.manager.db.get_special_time_reason(work_date, company, corp_name)
+        if existing and existing.get('reason'):
+            reason_entry.insert(0, existing['reason'])
+
+        reason_entry.focus()
+
+        def save_reason():
+            reason = reason_entry.get().strip()
+            user_id = self.current_user.get('id') if self.current_user else None
+            username = self.current_user.get('username') if self.current_user else None
+
+            self.manager.db.save_special_time_reason(
+                work_date, company, corp_name, extra_minutes, reason, user_id, username
+            )
+            dialog.destroy()
+            self.refresh_reason_grid()
+
+        def skip_reason():
+            # 사유 없이 저장
+            user_id = self.current_user.get('id') if self.current_user else None
+            username = self.current_user.get('username') if self.current_user else None
+
+            self.manager.db.save_special_time_reason(
+                work_date, company, corp_name, extra_minutes, "", user_id, username
+            )
+            dialog.destroy()
+            self.refresh_reason_grid()
+
+        # 버튼
+        btn_frame = tk.Frame(dialog)
+        btn_frame.pack(pady=20)
+
+        save_btn = tk.Button(btn_frame, text="저장", font=("맑은 고딕", 11, "bold"),
+                  bg="#3498db", fg="white", width=12, height=2, command=save_reason)
+        save_btn.pack(side=tk.LEFT, padx=10)
+
+        skip_btn = tk.Button(btn_frame, text="건너뛰기", font=("맑은 고딕", 11),
+                  bg="#95a5a6", fg="white", width=12, height=2, command=skip_reason)
+        skip_btn.pack(side=tk.LEFT, padx=10)
+
+        # 엔터키로 저장
+        reason_entry.bind("<Return>", lambda e: save_reason())
 
     def update_extra_time_display(self, company, corp_name):
         """특정 업체+법인명의 추가 시간 표시 업데이트 및 총합 업데이트"""
@@ -3112,8 +3748,15 @@ def main():
     # 로그인 전 업데이트 확인
     try:
         check_for_updates_on_startup(root)
-    except:
+    except Exception as e:
         pass
+
+    # root 창이 유효한지 확인 (업데이트 후 종료 시 방지)
+    try:
+        if not root.winfo_exists():
+            return
+    except:
+        return
 
     # 로그인 창 표시
     login = LoginWindow(root, lambda user: start_main_app(root, user))

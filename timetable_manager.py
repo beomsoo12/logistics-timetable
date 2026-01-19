@@ -18,6 +18,7 @@ class TimeTableManager:
         if self.db.connect():
             self.db.create_table()
             self.db.create_change_log_table()  # 변경 로그 테이블 생성
+            self.db.create_special_time_reasons_table()  # 특수 시간 변동 사유 테이블 생성
         else:
             raise Exception("데이터베이스 연결 실패")
 

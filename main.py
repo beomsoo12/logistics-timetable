@@ -1052,13 +1052,13 @@ class TimeTableGUI:
         # 헤더 행(row=0) 높이 1.5배로 설정
         self.canvas_frame.grid_rowconfigure(0, minsize=30)  # 헤더 행 높이 (일반 행의 1.5배)
 
-        # 행 높이 설정 (업체 수에 따라 자동 조정) - 60% 축소 (원본 대비)
+        # 행 높이 설정 (업체 수에 따라 자동 조정) - 90% (원본 대비)
         # 각 업체당: 기본업무 행(1) + 특수상황 행(1) + 구분선(0.3) = 약 2.3행
         # 추가: 헤더 행(1) + 총합 행(1) = 2행
         company_count = len(all_company_corps)
         total_rows = company_count * 2.3 + 2  # 업체별 행 + 헤더/총합
         available_height = frame_height - 50  # 스크롤바/여백 제외
-        row_height = max(13, min(25, int(available_height / total_rows)))  # 최소 13px, 최대 25px (60% 축소)
+        row_height = max(19, min(38, int(available_height / total_rows)))  # 최소 19px, 최대 38px (90%)
 
         # (업체명, 법인명) 조합별로 행 생성 (기본업무 행 + 특수상황 행, 한 줄 띄우기)
         row_num = 1
@@ -1316,6 +1316,7 @@ class TimeTableGUI:
         # 왼쪽 프레임 (법인별 합계 + 총 추가 시간) - 화면의 50%
         left_frame = tk.Frame(bottom_container, bg="white")
         left_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+        self.summary_frame = left_frame  # 나중에 업데이트할 수 있도록 참조 저장
 
         # 법인별 합계 표시
         if corp_name_totals:
@@ -2375,35 +2376,36 @@ class TimeTableGUI:
 
             total_extra_minutes += extra_minutes
 
-        # 법인별 합계 레이블 업데이트
-        for widget in self.canvas_frame.winfo_children():
-            if isinstance(widget, tk.Label):
-                text = widget.cget("text")
-                # 법인별 합계 행 업데이트 (형식: "법인명: +2h 30m")
-                if ":" in text and text != "총 추가 시간: 0" and not text.startswith("총 추가 시간:") and not text == "법인별 추가 시간 합계":
-                    parts = text.split(":", 1)
-                    if len(parts) == 2:
-                        label_corp_name = parts[0].strip()
-                        if label_corp_name in corp_name_totals:
-                            minutes = corp_name_totals[label_corp_name]
-                            if minutes != 0:
-                                abs_minutes = abs(minutes)
-                                hours = abs_minutes // 60
-                                mins = abs_minutes % 60
-                                sign_text = "+" if minutes > 0 else "-"
+        # 법인별 합계 레이블 업데이트 (summary_frame에서 찾기)
+        if hasattr(self, 'summary_frame'):
+            for widget in self.summary_frame.winfo_children():
+                if isinstance(widget, tk.Label):
+                    text = widget.cget("text")
+                    # 법인별 합계 행 업데이트 (형식: "법인명: +2h 30m")
+                    if ":" in text and text != "총 추가 시간: 0" and not text.startswith("총 추가 시간:") and not text == "법인별 추가 시간 합계":
+                        parts = text.split(":", 1)
+                        if len(parts) == 2:
+                            label_corp_name = parts[0].strip()
+                            if label_corp_name in corp_name_totals:
+                                minutes = corp_name_totals[label_corp_name]
+                                if minutes != 0:
+                                    abs_minutes = abs(minutes)
+                                    hours = abs_minutes // 60
+                                    mins = abs_minutes % 60
+                                    sign_text = "+" if minutes > 0 else "-"
 
-                                if hours > 0 and mins > 0:
-                                    time_text = f"{sign_text}{hours}h {mins}m"
-                                elif hours > 0:
-                                    time_text = f"{sign_text}{hours}h"
-                                elif mins > 0:
-                                    time_text = f"{sign_text}{mins}m"
+                                    if hours > 0 and mins > 0:
+                                        time_text = f"{sign_text}{hours}h {mins}m"
+                                    elif hours > 0:
+                                        time_text = f"{sign_text}{hours}h"
+                                    elif mins > 0:
+                                        time_text = f"{sign_text}{mins}m"
+                                    else:
+                                        time_text = "0"
                                 else:
                                     time_text = "0"
-                            else:
-                                time_text = "0"
 
-                            widget.config(text=f"{label_corp_name}: {time_text}")
+                                widget.config(text=f"{label_corp_name}: {time_text}")
 
         # 총합을 시간 형식으로 변환
         if total_extra_minutes != 0:
@@ -2423,11 +2425,12 @@ class TimeTableGUI:
         else:
             total_text = "총 추가 시간: 0"
 
-        # 총합 레이블 찾아서 업데이트
-        for widget in self.canvas_frame.winfo_children():
-            if isinstance(widget, tk.Label) and widget.cget("text").startswith("총 추가 시간:"):
-                widget.config(text=total_text)
-                break
+        # 총합 레이블 찾아서 업데이트 (summary_frame에서 찾기)
+        if hasattr(self, 'summary_frame'):
+            for widget in self.summary_frame.winfo_children():
+                if isinstance(widget, tk.Label) and widget.cget("text").startswith("총 추가 시간:"):
+                    widget.config(text=total_text)
+                    break
 
     def export_to_excel(self):
         """Excel 파일로 내보내기"""

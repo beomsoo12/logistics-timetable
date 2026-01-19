@@ -3,10 +3,16 @@
 """
 
 # 현재 버전 (MAJOR.MINOR.PATCH)
-VERSION = "1.3.7"
+VERSION = "1.3.8"
 
 # 버전 히스토리
 VERSION_HISTORY = {
+    "1.3.8": {
+        "date": "2026-01-19",
+        "changes": [
+            "업데이트 테스트"
+        ]
+    },
     "1.3.7": {
         "date": "2026-01-19",
         "changes": [

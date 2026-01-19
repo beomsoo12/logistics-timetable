@@ -6,9 +6,7 @@ GitHub 릴리스를 확인하고 새 버전을 다운로드하여 설치
 import os
 import sys
 import json
-import shutil
-import zipfile
-import subprocess
+import tempfile
 from urllib import request, error
 from datetime import datetime
 import tkinter as tk
@@ -37,11 +35,6 @@ class Updater:
     # GitHub 저장소 정보
     GITHUB_USER = "beomsoo12"
     GITHUB_REPO = "logistics-timetable"
-
-    # 기본 설치 폴더 (고정 경로)
-    DEFAULT_INSTALL_DIR = r"C:\gyunwoo\logistics"
-    # 업데이트 작업 폴더
-    UPDATE_DIR = r"C:\gyunwoo\update"
 
     def __init__(self):
         self.current_version = VERSION
@@ -208,13 +201,22 @@ class Updater:
 
     def download_and_install(self, parent=None):
         """
-        업데이트 다운로드 및 설치
+        업데이트 다운로드 및 설치 (배치파일 방식)
         """
         if not self.download_url:
             messagebox.showerror("오류", "다운로드 URL을 찾을 수 없습니다.")
             return False
 
         write_update_log(f"다운로드 시작: {self.download_url}")
+
+        # 현재 실행 파일 경로
+        if getattr(sys, 'frozen', False):
+            current_exe = sys.executable
+            install_dir = os.path.dirname(current_exe)
+        else:
+            # 개발 모드
+            messagebox.showinfo("개발 모드", "개발 모드에서는 수동으로 업데이트하세요.")
+            return False
 
         # 프로그레스 다이얼로그
         progress_win = tk.Toplevel()
@@ -242,23 +244,10 @@ class Updater:
         progress_win.update()
 
         try:
-            install_dir = self.DEFAULT_INSTALL_DIR
-            update_dir = self.UPDATE_DIR
-            exe_name = "LogisticsTimetable.exe"
-
-            if getattr(sys, 'frozen', False):
-                current_exe = sys.executable
-                is_exe = True
-            else:
-                current_exe = os.path.abspath(__file__)
-                is_exe = False
-
-            # 업데이트 폴더 생성
-            os.makedirs(update_dir, exist_ok=True)
-            os.makedirs(install_dir, exist_ok=True)
-
-            # 업데이트 폴더에 다운로드
-            zip_path = os.path.join(update_dir, "update.zip")
+            # 임시 폴더에 다운로드
+            temp_dir = tempfile.gettempdir()
+            zip_path = os.path.join(temp_dir, "logistics_update.zip")
+            extract_dir = os.path.join(temp_dir, "logistics_update_temp")
 
             # 다운로드
             status_label.config(text="다운로드 중...")
@@ -267,7 +256,7 @@ class Updater:
             req = request.Request(self.download_url)
             req.add_header('User-Agent', 'LogisticsTimetable-Updater')
 
-            with request.urlopen(req, timeout=120) as response:
+            with request.urlopen(req, timeout=300) as response:
                 total_size = int(response.headers.get('content-length', 0))
                 downloaded = 0
                 block_size = 8192
@@ -283,89 +272,88 @@ class Updater:
                         if total_size > 0:
                             percent = int(downloaded * 100 / total_size)
                             progress_bar['value'] = percent
-                            percent_label.config(text=f"{percent}% ({downloaded // 1024} KB / {total_size // 1024} KB)")
+                            percent_label.config(text=f"{percent}% ({downloaded // 1024 // 1024}MB / {total_size // 1024 // 1024}MB)")
                             progress_win.update()
 
             write_update_log(f"다운로드 완료: {zip_path}")
 
-            status_label.config(text="설치 준비 중...")
+            status_label.config(text="업데이트 준비 중...")
             progress_bar['value'] = 100
             progress_win.update()
 
-            if is_exe:
-                # 업데이트 전용 프로그램 경로
-                updater_exe = os.path.join(update_dir, "DoUpdate.exe")
+            # 배치 파일 생성
+            batch_path = os.path.join(temp_dir, "do_update.bat")
 
-                write_update_log(f"업데이터 확인: {updater_exe}")
+            batch_content = f'''@echo off
+chcp 65001 >nul
+echo.
+echo ========================================
+echo   물류 타임테이블 업데이트 v{self.latest_version}
+echo ========================================
+echo.
+echo 프로그램 종료 대기 중...
+timeout /t 3 /nobreak >nul
 
-                if not os.path.exists(updater_exe):
-                    write_update_log("업데이터 없음 - 다운로드 필요")
-                    progress_win.destroy()
-                    messagebox.showerror(
-                        "업데이트 오류",
-                        f"업데이트 프로그램을 찾을 수 없습니다.\n\n"
-                        f"경로: {updater_exe}\n\n"
-                        "프로그램을 재설치해주세요."
-                    )
-                    return False
+echo.
+echo 이전 버전 백업 중...
+if exist "{install_dir}\\backup" rmdir /s /q "{install_dir}\\backup"
+mkdir "{install_dir}\\backup"
+xcopy "{install_dir}\\*.*" "{install_dir}\\backup\\" /E /H /Y /Q >nul 2>&1
 
-                progress_win.destroy()
+echo.
+echo 압축 해제 중...
+if exist "{extract_dir}" rmdir /s /q "{extract_dir}"
+powershell -Command "Expand-Archive -Path '{zip_path}' -DestinationPath '{extract_dir}' -Force"
 
-                messagebox.showinfo(
-                    "업데이트",
-                    f"v{self.latest_version} 업데이트를 설치합니다.\n\n"
-                    f"설치 위치: {install_dir}\n\n"
-                    "프로그램이 자동으로 재시작됩니다."
-                )
+echo.
+echo 파일 복사 중...
+for /d %%i in ("{extract_dir}\\*") do (
+    xcopy "%%i\\*.*" "{install_dir}\\" /E /H /Y /Q >nul 2>&1
+)
 
-                write_update_log("업데이터 프로그램 실행")
+echo.
+echo 임시 파일 정리 중...
+del /f /q "{zip_path}" >nul 2>&1
+rmdir /s /q "{extract_dir}" >nul 2>&1
 
-                # 업데이트 전용 프로그램 실행
-                subprocess.Popen(
-                    [updater_exe],
-                    cwd=update_dir,
-                    creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
-                )
+echo.
+echo ========================================
+echo   업데이트 완료! 프로그램을 시작합니다.
+echo ========================================
+echo.
+timeout /t 2 /nobreak >nul
 
-                # 메인 프로그램 종료
-                write_update_log("메인 프로그램 종료")
-                if parent:
-                    try:
-                        parent.destroy()
-                    except:
-                        pass
-                sys.exit(0)
+start "" "{install_dir}\\LogisticsTimetable.exe"
+del "%~f0"
+'''
 
-            else:
-                # Python 스크립트 모드 - 업데이트 폴더 사용
-                extract_dir = os.path.join(update_dir, "extracted")
-                os.makedirs(extract_dir, exist_ok=True)
+            with open(batch_path, 'w', encoding='cp949') as f:
+                f.write(batch_content)
 
-                with zipfile.ZipFile(zip_path, 'r') as zf:
-                    zf.extractall(extract_dir)
+            write_update_log(f"배치 파일 생성: {batch_path}")
+            progress_win.destroy()
 
-                current_dir = os.path.dirname(os.path.abspath(__file__))
-                for root, dirs, files in os.walk(extract_dir):
-                    for file in files:
-                        if file.endswith('.py') and not file.startswith('db_config'):
-                            src = os.path.join(root, file)
-                            dst = os.path.join(current_dir, file)
-                            if os.path.exists(dst):
-                                shutil.copy2(dst, dst + '.backup')
-                            shutil.copy2(src, dst)
+            # 사용자에게 알림
+            messagebox.showinfo(
+                "업데이트",
+                f"v{self.latest_version} 업데이트를 설치합니다.\n\n"
+                "프로그램이 종료되고 업데이트가 진행됩니다.\n"
+                "업데이트 완료 후 자동으로 재시작됩니다."
+            )
 
-                # 정리
-                shutil.rmtree(extract_dir, ignore_errors=True)
-                os.remove(zip_path) if os.path.exists(zip_path) else None
-                progress_win.destroy()
+            write_update_log("배치 파일 실행")
 
-                messagebox.showinfo(
-                    "업데이트 완료",
-                    f"v{self.latest_version} 업데이트가 완료되었습니다.\n\n"
-                    "프로그램을 다시 시작해주세요."
-                )
+            # 배치 파일 실행 (새 창에서)
+            os.startfile(batch_path)
 
-            return True
+            # 메인 프로그램 종료
+            write_update_log("메인 프로그램 종료")
+            if parent:
+                try:
+                    parent.destroy()
+                except:
+                    pass
+            sys.exit(0)
 
         except Exception as e:
             write_update_log(f"업데이트 실패: {str(e)}")

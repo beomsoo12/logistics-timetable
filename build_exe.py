@@ -72,39 +72,13 @@ def build_executable():
         return False
 
 
-def build_updater():
-    """PyInstaller로 업데이터 실행 파일 빌드"""
-    print("\n업데이터 실행 파일을 빌드합니다...")
-
-    # 업데이터는 콘솔 모드로 빌드 (진행 상황 표시)
-    # --onefile 모드 사용 (단일 파일)
-    cmd = [
-        'pyinstaller',
-        '--name=DoUpdate',
-        '--onefile',  # 단일 파일
-        '--console',  # 콘솔 표시 (진행 상황 확인용)
-        '--icon=NONE',
-        'do_update.py'
-    ]
-
-    try:
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True, encoding='utf-8', errors='replace')
-        print("[OK] 업데이터 빌드 성공!")
-        return True
-    except subprocess.CalledProcessError as e:
-        print(f"[ERROR] 업데이터 빌드 실패: {e}")
-        if e.stdout:
-            print("STDOUT:", e.stdout)
-        if e.stderr:
-            print("STDERR:", e.stderr)
-        return False
 
 def create_distribution_package():
     """배포 패키지 생성"""
     print("\n배포 패키지를 생성합니다...")
 
     # 배포 폴더 이름
-    dist_name = f"LogisticsTimetable_v1.3.4_{datetime.now().strftime('%Y%m%d')}"
+    dist_name = f"LogisticsTimetable_v1.3.5_{datetime.now().strftime('%Y%m%d')}"
     dist_folder = os.path.join('dist', dist_name)
 
     # 배포 폴더 생성
@@ -159,15 +133,6 @@ def create_distribution_package():
     os.makedirs(data_folder, exist_ok=True)
     print(f"  [OK] data 폴더 생성 완료")
 
-    # 업데이터 복사 (update 폴더에)
-    updater_exe = os.path.join('dist', 'DoUpdate.exe')
-    update_folder = os.path.join(dist_folder, 'update')
-    os.makedirs(update_folder, exist_ok=True)
-    if os.path.exists(updater_exe):
-        shutil.copy2(updater_exe, update_folder)
-        print(f"  [OK] 업데이터 복사 완료 (update/DoUpdate.exe)")
-    else:
-        print(f"  [WARNING] 업데이터 파일이 없습니다: {updater_exe}")
 
     # ZIP 파일로 압축
     print("\n배포 패키지를 압축합니다...")
@@ -273,12 +238,7 @@ def main():
         print("\n메인 프로그램 빌드 실패!")
         return
 
-    # 3. 업데이터 실행 파일 빌드
-    if not build_updater():
-        print("\n업데이터 빌드 실패!")
-        return
-
-    # 4. 배포 패키지 생성
+    # 3. 배포 패키지 생성
     result = create_distribution_package()
     if result:
         dist_folder, zip_path = result

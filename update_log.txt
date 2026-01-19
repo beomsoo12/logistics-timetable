@@ -1,0 +1,200 @@
+[2026-01-19 12:31:12] check_and_update 시작 - auto: True
+[2026-01-19 12:31:12] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 12:31:12] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 12:31:13] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 12:31:13] 최신 버전 사용 중
+[2026-01-19 12:31:37] check_and_update 시작 - auto: True
+[2026-01-19 12:31:37] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 12:31:37] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 12:31:38] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 12:31:38] 최신 버전 사용 중
+[2026-01-19 12:33:26] check_and_update 시작 - auto: True
+[2026-01-19 12:33:26] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 12:33:26] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 12:33:26] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 12:33:26] 최신 버전 사용 중
+[2026-01-19 12:37:10] check_and_update 시작 - auto: True
+[2026-01-19 12:37:10] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 12:37:10] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 12:37:10] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 12:37:10] 최신 버전 사용 중
+[2026-01-19 12:41:16] check_and_update 시작 - auto: True
+[2026-01-19 12:41:16] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 12:41:16] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 12:41:16] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 12:41:16] 최신 버전 사용 중
+[2026-01-19 12:42:10] check_and_update 시작 - auto: True
+[2026-01-19 12:42:10] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 12:42:10] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 12:42:10] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 12:42:10] 최신 버전 사용 중
+[2026-01-19 12:42:21] check_and_update 시작 - auto: True
+[2026-01-19 12:42:21] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 12:42:21] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 12:42:21] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 12:42:21] 최신 버전 사용 중
+[2026-01-19 12:44:46] check_and_update 시작 - auto: True
+[2026-01-19 12:44:46] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 12:44:46] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 12:44:46] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 12:44:46] 최신 버전 사용 중
+[2026-01-19 12:53:45] check_and_update 시작 - auto: True
+[2026-01-19 12:53:45] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 12:53:45] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 12:53:45] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 12:53:45] 최신 버전 사용 중
+[2026-01-19 12:54:43] check_and_update 시작 - auto: True
+[2026-01-19 12:54:43] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 12:54:43] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 12:54:43] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 12:54:43] 최신 버전 사용 중
+[2026-01-19 12:56:51] check_and_update 시작 - auto: True
+[2026-01-19 12:56:51] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 12:56:51] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 12:56:52] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 12:56:52] 최신 버전 사용 중
+[2026-01-19 12:59:06] check_and_update 시작 - auto: True
+[2026-01-19 12:59:06] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 12:59:06] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 12:59:07] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 12:59:07] 최신 버전 사용 중
+[2026-01-19 13:03:10] check_and_update 시작 - auto: True
+[2026-01-19 13:03:10] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 13:03:10] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 13:03:11] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 13:03:11] 최신 버전 사용 중
+[2026-01-19 13:06:37] check_and_update 시작 - auto: True
+[2026-01-19 13:06:37] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 13:06:37] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 13:06:38] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 13:06:38] 최신 버전 사용 중
+[2026-01-19 13:08:04] check_and_update 시작 - auto: True
+[2026-01-19 13:08:04] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 13:08:04] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 13:08:04] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 13:08:04] 최신 버전 사용 중
+[2026-01-19 13:10:29] check_and_update 시작 - auto: True
+[2026-01-19 13:10:29] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 13:10:29] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 13:10:29] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 13:10:29] 최신 버전 사용 중
+[2026-01-19 13:14:40] check_and_update 시작 - auto: True
+[2026-01-19 13:14:40] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 13:14:40] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 13:14:40] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 13:14:40] 최신 버전 사용 중
+[2026-01-19 13:16:56] check_and_update 시작 - auto: True
+[2026-01-19 13:16:56] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 13:16:56] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 13:16:56] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 13:16:56] 최신 버전 사용 중
+[2026-01-19 13:17:58] check_and_update 시작 - auto: True
+[2026-01-19 13:17:58] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 13:17:58] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 13:17:58] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 13:17:58] 최신 버전 사용 중
+[2026-01-19 13:23:46] check_and_update 시작 - auto: True
+[2026-01-19 13:23:46] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 13:23:46] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 13:23:46] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 13:23:46] 최신 버전 사용 중
+[2026-01-19 13:27:26] check_and_update 시작 - auto: True
+[2026-01-19 13:27:26] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 13:27:26] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 13:27:27] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 13:27:27] 최신 버전 사용 중
+[2026-01-19 13:28:45] check_and_update 시작 - auto: True
+[2026-01-19 13:28:45] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 13:28:45] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 13:28:45] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 13:28:45] 최신 버전 사용 중
+[2026-01-19 13:29:24] check_and_update 시작 - auto: True
+[2026-01-19 13:29:24] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 13:29:24] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 13:29:24] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 13:29:24] 최신 버전 사용 중
+[2026-01-19 13:31:06] check_and_update 시작 - auto: True
+[2026-01-19 13:31:06] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 13:31:06] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 13:31:06] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 13:31:06] 최신 버전 사용 중
+[2026-01-19 13:31:30] check_and_update 시작 - auto: True
+[2026-01-19 13:31:30] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 13:31:30] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 13:31:30] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 13:31:30] 최신 버전 사용 중
+[2026-01-19 13:32:55] check_and_update 시작 - auto: True
+[2026-01-19 13:32:55] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 13:32:55] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 13:32:55] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 13:32:55] 최신 버전 사용 중
+[2026-01-19 13:33:11] check_and_update 시작 - auto: True
+[2026-01-19 13:33:11] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 13:33:11] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 13:33:11] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 13:33:11] 최신 버전 사용 중
+[2026-01-19 13:33:28] check_and_update 시작 - auto: True
+[2026-01-19 13:33:28] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 13:33:28] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 13:33:29] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 13:33:29] 최신 버전 사용 중
+[2026-01-19 13:34:29] check_and_update 시작 - auto: True
+[2026-01-19 13:34:29] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 13:34:29] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 13:34:29] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 13:34:29] 최신 버전 사용 중
+[2026-01-19 15:11:52] check_and_update 시작 - auto: True
+[2026-01-19 15:11:52] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 15:11:52] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 15:11:52] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 15:11:52] 최신 버전 사용 중
+[2026-01-19 15:16:18] check_and_update 시작 - auto: True
+[2026-01-19 15:16:18] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 15:16:18] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 15:16:18] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 15:16:18] 최신 버전 사용 중
+[2026-01-19 16:01:51] check_and_update 시작 - auto: True
+[2026-01-19 16:01:51] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 16:01:51] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 16:01:52] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 16:01:52] 최신 버전 사용 중
+[2026-01-19 16:03:10] check_and_update 시작 - auto: True
+[2026-01-19 16:03:10] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 16:03:10] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 16:03:10] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 16:03:10] 최신 버전 사용 중
+[2026-01-19 16:08:54] check_and_update 시작 - auto: True
+[2026-01-19 16:08:54] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 16:08:54] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 16:08:54] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 16:08:54] 최신 버전 사용 중
+[2026-01-19 16:12:26] check_and_update 시작 - auto: True
+[2026-01-19 16:12:26] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 16:12:26] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 16:12:27] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 16:12:27] 최신 버전 사용 중
+[2026-01-19 16:18:38] check_and_update 시작 - auto: True
+[2026-01-19 16:18:38] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 16:18:38] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 16:18:38] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 16:18:38] 최신 버전 사용 중
+[2026-01-19 16:20:35] check_and_update 시작 - auto: True
+[2026-01-19 16:20:35] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 16:20:35] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 16:20:36] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 16:20:36] 최신 버전 사용 중
+[2026-01-19 16:22:24] check_and_update 시작 - auto: True
+[2026-01-19 16:22:24] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 16:22:24] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 16:22:25] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 16:22:25] 최신 버전 사용 중
+[2026-01-19 16:23:56] check_and_update 시작 - auto: True
+[2026-01-19 16:23:56] 업데이트 확인 시작 - 현재 버전: 1.3.3
+[2026-01-19 16:23:56] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 16:23:56] 최신 버전: 1.3.3, 현재 버전: 1.3.3
+[2026-01-19 16:23:56] 최신 버전 사용 중
+[2026-01-19 16:26:43] check_and_update 시작 - auto: True
+[2026-01-19 16:26:43] 업데이트 확인 시작 - 현재 버전: 1.3.4
+[2026-01-19 16:26:43] API 호출: https://api.github.com/repos/beomsoo12/logistics-timetable/releases/latest
+[2026-01-19 16:26:44] 최신 버전: 1.3.3, 현재 버전: 1.3.4
+[2026-01-19 16:26:44] 최신 버전 사용 중

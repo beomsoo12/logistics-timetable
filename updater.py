@@ -284,46 +284,45 @@ class Updater:
             # 배치 파일 생성
             batch_path = os.path.join(temp_dir, "do_update.bat")
 
+            # 경로에서 백슬래시 이스케이프 처리
+            install_dir_bat = install_dir.replace('/', '\\')
+            zip_path_bat = zip_path.replace('/', '\\')
+            extract_dir_bat = extract_dir.replace('/', '\\')
+
             batch_content = f'''@echo off
-chcp 65001 >nul
+chcp 949 >nul
 echo.
 echo ========================================
-echo   물류 타임테이블 업데이트 v{self.latest_version}
+echo   Logistics Timetable Update v{self.latest_version}
 echo ========================================
 echo.
-echo 프로그램 종료 대기 중...
+echo Waiting for program to close...
 timeout /t 3 /nobreak >nul
 
 echo.
-echo 이전 버전 백업 중...
-if exist "{install_dir}\\backup" rmdir /s /q "{install_dir}\\backup"
-mkdir "{install_dir}\\backup"
-xcopy "{install_dir}\\*.*" "{install_dir}\\backup\\" /E /H /Y /Q >nul 2>&1
+echo Extracting update files...
+if exist "{extract_dir_bat}" rmdir /s /q "{extract_dir_bat}"
+powershell -Command "Expand-Archive -Path '{zip_path_bat}' -DestinationPath '{extract_dir_bat}' -Force"
 
 echo.
-echo 압축 해제 중...
-if exist "{extract_dir}" rmdir /s /q "{extract_dir}"
-powershell -Command "Expand-Archive -Path '{zip_path}' -DestinationPath '{extract_dir}' -Force"
-
-echo.
-echo 파일 복사 중...
-for /d %%i in ("{extract_dir}\\*") do (
-    xcopy "%%i\\*.*" "{install_dir}\\" /E /H /Y /Q >nul 2>&1
+echo Copying files...
+for /d %%i in ("{extract_dir_bat}\\*") do (
+    xcopy "%%i\\*.*" "{install_dir_bat}\\" /E /H /Y /Q >nul 2>&1
 )
 
 echo.
-echo 임시 파일 정리 중...
-del /f /q "{zip_path}" >nul 2>&1
-rmdir /s /q "{extract_dir}" >nul 2>&1
+echo Cleaning up...
+del /f /q "{zip_path_bat}" >nul 2>&1
+rmdir /s /q "{extract_dir_bat}" >nul 2>&1
 
 echo.
 echo ========================================
-echo   업데이트 완료! 프로그램을 시작합니다.
+echo   Update complete! Starting program...
 echo ========================================
 echo.
 timeout /t 2 /nobreak >nul
 
-start "" "{install_dir}\\LogisticsTimetable.exe"
+start "" "{install_dir_bat}\\LogisticsTimetable.exe"
 del "%~f0"
 '''
 

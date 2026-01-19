@@ -2180,7 +2180,7 @@ class TimeTableGUI:
         self.drag_corp_name = None
 
     def show_reason_dialog(self, company, corp_name):
-        """특수 시간 변동 사유 입력 다이얼로그"""
+        """특수 시간 변동 사유 입력 다이얼로그 (추가 시간 0이면 삭제)"""
         # 현재 추가 시간 계산
         default_tasks = self.manager.get_default_tasks()
         company_tasks = {}
@@ -2191,11 +2191,10 @@ class TimeTableGUI:
                     company_tasks[time_slot] = task_info
 
         extra_time_text = self.calculate_extra_time(company, corp_name, company_tasks)
+        work_date = self.date_entry.get_date().strftime("%Y-%m-%d")
 
-        # 추가 시간이 0이면 사유 입력 불필요
+        # 추가 시간이 0이면 변동 내역에서 삭제
         if not extra_time_text or extra_time_text in ["0", "+0m", "-0m"]:
-            # 기존 사유 삭제
-            work_date = self.date_entry.get_date().strftime("%Y-%m-%d")
             self.manager.db.delete_special_time_reason(work_date, company, corp_name)
             self.refresh_reason_grid()
             return
@@ -2244,7 +2243,6 @@ class TimeTableGUI:
         reason_entry.pack(padx=20, fill=tk.X)
 
         # 기존 사유 조회
-        work_date = self.date_entry.get_date().strftime("%Y-%m-%d")
         existing = self.manager.db.get_special_time_reason(work_date, company, corp_name)
         if existing and existing.get('reason'):
             reason_entry.insert(0, existing['reason'])
@@ -2263,12 +2261,13 @@ class TimeTableGUI:
             self.refresh_reason_grid()
 
         def skip_reason():
-            # 사유 없이 저장
+            # 사유 없이 저장 (기존 사유 유지)
             user_id = self.current_user.get('id') if self.current_user else None
             username = self.current_user.get('username') if self.current_user else None
+            existing_reason = existing.get('reason', '') if existing else ''
 
             self.manager.db.save_special_time_reason(
-                work_date, company, corp_name, extra_minutes, "", user_id, username
+                work_date, company, corp_name, extra_minutes, existing_reason, user_id, username
             )
             dialog.destroy()
             self.refresh_reason_grid()

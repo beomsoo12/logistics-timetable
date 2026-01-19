@@ -78,7 +78,7 @@ def create_distribution_package():
     print("\n배포 패키지를 생성합니다...")
 
     # 배포 폴더 이름
-    dist_name = f"LogisticsTimetable_v1.3.5_{datetime.now().strftime('%Y%m%d')}"
+    dist_name = f"LogisticsTimetable_v1.3.6_{datetime.now().strftime('%Y%m%d')}"
     dist_folder = os.path.join('dist', dist_name)
 
     # 배포 폴더 생성
